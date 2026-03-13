@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { createBot, startBot } from '../bot/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +28,11 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
   
-  // Здесь можно инициализировать бота
-  // initBot();
+  // Запуск Telegram бота
+  const bot = createBot();
+  if (bot) {
+    startBot(bot);
+  } else {
+    console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
+  }
 });

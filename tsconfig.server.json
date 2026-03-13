@@ -7,10 +7,9 @@
     "strict": true,
     "skipLibCheck": true,
     "outDir": "dist/server",
-    "rootDir": "server",
     "declaration": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
   },
-  "include": ["server/**/*"]
+  "include": ["server/**/*", "bot/**/*"]
 }
