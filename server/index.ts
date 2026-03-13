@@ -28,7 +28,7 @@ app.post('/webhook', async (req, res) => {
   if (bot) {
     await bot.handleUpdate(req.body);
   }
-  res.sendOk();
+  res.send('OK');
 });
 
 // Проксирование всех запросов на index.html для React Router
