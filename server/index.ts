@@ -25,14 +25,18 @@ app.get('*', (req, res) => {
 });
 
 // Запуск сервера
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server running on port ${PORT}`);
   
-  // Запуск Telegram бота
+  // Запуск Telegram бота (только если есть токен)
+  // Временно отключено для диагностики
+  /*
   const bot = createBot();
   if (bot) {
     startBot(bot);
   } else {
     console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
   }
+  */
+  console.log('🤖 Bot disabled for debugging');
 });
