@@ -1,28 +1,16 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import fs from 'fs';
 import { createBot, startBot } from '../bot/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Отладка
-console.log('📂 Current dir:', process.cwd());
-console.log('📂 __dirname:', __dirname);
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Статика фронтенда (после npm run build)
-const distPath = path.join(__dirname, '../dist');
-
-console.log('📁 Dist path:', distPath);
-console.log('📁 Dist exists:', fs.existsSync(distPath));
-
-if (fs.existsSync(distPath)) {
-  console.log('📁 Dist contents:', fs.readdirSync(distPath));
-}
+const distPath = path.join(__dirname, '..');
 
 app.use(express.static(distPath));
 
