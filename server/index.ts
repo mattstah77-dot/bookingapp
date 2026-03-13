@@ -7,6 +7,10 @@ import { createBot, startBot } from '../bot/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Отладка
+console.log('📂 Current dir:', process.cwd());
+console.log('📂 __dirname:', __dirname);
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 

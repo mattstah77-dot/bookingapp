@@ -6,7 +6,8 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "outDir": "dist/server",
+    "outDir": "dist",
+    "rootDir": ".",
     "declaration": false,
     "resolveJsonModule": true,
     "allowSyntheticDefaultImports": true
