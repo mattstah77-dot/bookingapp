@@ -1,0 +1,10 @@
+services:
+  - name: bookingapp
+    type: web
+    env: node
+    region: oregon
+    buildCommand: npm install && npm run build && npm run build:server
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
