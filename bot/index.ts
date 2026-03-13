@@ -1,6 +1,7 @@
 import { Bot, Context } from 'grammy';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
+const WEBHOOK_URL = process.env.WEBHOOK_URL;
 
 if (!BOT_TOKEN) {
   console.warn('⚠️ BOT_TOKEN not set, bot will not start');
@@ -38,11 +39,19 @@ export function createBot() {
   return bot;
 }
 
-export function startBot(bot: Bot) {
+export async function startBot(bot: Bot) {
   console.log('🤖 Telegram bot starting...');
   
-  bot.start();
-  console.log('✅ Bot is running!');
+  // Используем webhook на production
+  if (WEBHOOK_URL) {
+    const webhookUrl = `${WEBHOOK_URL}/webhook`;
+    await bot.api.setWebhook(webhookUrl);
+    console.log(`✅ Webhook set to: ${webhookUrl}`);
+  } else {
+    // Polling для локальной разработки
+    bot.start();
+    console.log('✅ Bot is running (polling mode)');
+  }
   
   // Graceful shutdown
   process.on('SIGINT', async () => {

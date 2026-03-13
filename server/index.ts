@@ -9,6 +9,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
+// Нужно для webhook Telegram
+app.use(express.json());
+
 // Статика фронтенда (после npm run build)
 const distPath = path.join(__dirname, '..');
 
@@ -19,24 +22,29 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Telegram webhook endpoint
+app.post('/webhook', async (req, res) => {
+  const bot = createBot();
+  if (bot) {
+    await bot.handleUpdate(req.body);
+  }
+  res.sendOk();
+});
+
 // Проксирование всех запросов на index.html для React Router
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Запуск сервера
-app.listen(PORT, '0.0.0.0', () => {
+app.listen(PORT, '0.0.0.0', async () => {
   console.log(`🚀 Server running on port ${PORT}`);
   
-  // Запуск Telegram бота (только если есть токен)
-  // Временно отключено для диагностики
-  /*
+  // Запуск Telegram бота
   const bot = createBot();
   if (bot) {
-    startBot(bot);
+    await startBot(bot);
   } else {
     console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
   }
-  */
-  console.log('🤖 Bot disabled for debugging');
 });

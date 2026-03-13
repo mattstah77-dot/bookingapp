@@ -3,8 +3,10 @@ services:
     type: web
     env: node
     region: oregon
-    buildCommand: npm install && npm run build && npm run build:server && ls -la dist/
+    buildCommand: npm install && npm run build && npm run build:server
     startCommand: node dist/server/index.js
     envVars:
       - key: NODE_ENV
         value: production
+      - key: WEBHOOK_URL
+        value: https://bookingapp-obxp.onrender.com
