@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { 
   generateTimeSlots, 
-  getAvailableSlots,
   DEFAULT_SCHEDULE,
   type ScheduleConfig,
-  type TimeSlot 
+  type TimeSlot,
+  type Booking 
 } from '../utils/timeSlots';
 
 const API_BASE = '/api';
@@ -23,8 +23,7 @@ interface UseTimeSlotsResult {
 
 /**
  * Хук для управления временными слотами
- * Автоматически генерирует, фильтрует и обновляет слоты
- * Загружает занятые слоты с бэкенда
+ * Smart Dynamic Slot Engine - полная поддержка всех этапов
  */
 export function useTimeSlots({
   selectedDate,
@@ -32,16 +31,16 @@ export function useTimeSlots({
   scheduleConfig = DEFAULT_SCHEDULE,
 }: UseTimeSlotsOptions): UseTimeSlotsResult {
   const [loading, setLoading] = useState(false);
-  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+  const [bookings, setBookings] = useState<Booking[]>([]);
 
-  // Загрузка занятых слотов с бэкенда при изменении даты
+  // Загрузка бронирований с бэкенда при изменении даты
   useEffect(() => {
     if (!selectedDate) {
-      setBookedSlots([]);
+      setBookings([]);
       return;
     }
 
-    const fetchBookedSlots = async () => {
+    const fetchBookings = async () => {
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
@@ -52,33 +51,36 @@ export function useTimeSlots({
           `${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`
         );
         const data = await res.json();
-        // data - это массив занятых времён
-        setBookedSlots(data);
+        
+        // API возвращает массив занятых времён - конвертируем в формат брони
+        const bookedTimes: Booking[] = Array.isArray(data) 
+          ? data.map((time: string) => ({
+              start: time,
+              end: time, // API должно возвращать полные интервалы, но для совместимости
+            }))
+          : [];
+        
+        setBookings(bookedTimes);
       } catch (err) {
-        console.error('Failed to fetch booked slots:', err);
-        setBookedSlots([]);
+        console.error('Failed to fetch bookings:', err);
+        setBookings([]);
       }
     };
 
-    fetchBookedSlots();
+    fetchBookings();
   }, [selectedDate, serviceDuration]);
 
-  // Генерация слотов с учётом всех параметров
-  const allSlots = useMemo(() => {
-    if (!selectedDate) return [];
-    
-    return generateTimeSlots(
-      scheduleConfig,
-      serviceDuration,
-      bookedSlots
-    );
-  }, [selectedDate, serviceDuration, scheduleConfig, bookedSlots]);
-
-  // Только доступные слоты (не прошедшие и не занятые)
+  // Генерация слотов с учётом всех этапов
   const slots = useMemo(() => {
     if (!selectedDate) return [];
-    return getAvailableSlots(allSlots, selectedDate);
-  }, [allSlots, selectedDate]);
+    
+    return generateTimeSlots({
+      config: scheduleConfig,
+      serviceDuration,
+      bookings,
+      selectedDate,
+    });
+  }, [selectedDate, serviceDuration, scheduleConfig, bookings]);
 
   // Loading состояние
   useEffect(() => {
@@ -89,7 +91,7 @@ export function useTimeSlots({
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [selectedDate, serviceDuration, bookedSlots]);
+  }, [selectedDate, serviceDuration, bookings]);
 
   // Ручной refetch
   const refetch = useCallback(() => {
@@ -103,8 +105,14 @@ export function useTimeSlots({
 
     fetch(`${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`)
       .then(res => res.json())
-      .then(data => {
-        setBookedSlots(data);
+      .then((data: string[]) => {
+        const bookedTimes: Booking[] = Array.isArray(data) 
+          ? data.map((time: string) => ({
+              start: time,
+              end: time,
+            }))
+          : [];
+        setBookings(bookedTimes);
         setLoading(false);
       })
       .catch(() => setLoading(false));
@@ -117,4 +125,4 @@ export function useTimeSlots({
   };
 }
 
-export type { TimeSlot, ScheduleConfig };
+export type { TimeSlot, ScheduleConfig, Booking };

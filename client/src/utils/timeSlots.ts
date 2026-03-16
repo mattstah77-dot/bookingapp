@@ -1,31 +1,59 @@
 /**
+ * Smart Dynamic Slot Engine
+ * Полноценная система генерации временных слотов
+ */
+
+// ========== ТИПЫ ==========
+
+/**
  * Конфигурация рабочего времени
  */
 export interface ScheduleConfig {
-  startTime: string;  // "09:00"
-  endTime: string;    // "19:00"
-  interval: number;   // интервал в минутах (30, 60 и т.д.)
-  buffer: number;     // буфер между клиентами в минутах
+  workDayStart: string;   // "09:00" - начало рабочего дня
+  workDayEnd: string;     // "19:00" - конец рабочего дня
+  slotStep: number;       // 15 - шаг сетки в минутах
+  bufferBetweenClients: number; // 10 - буфер между клиентами
+}
+
+/**
+ * Существующая бронь (интервал)
+ */
+export interface Booking {
+  start: string;  // "10:00"
+  end: string;    // "11:00"
 }
 
 /**
  * Выходные данные слота
  */
 export interface TimeSlot {
-  time: string;       // "10:00"
-  endTime: string;    // "10:30" (время окончания с учётом длительности)
+  time: string;       // "10:00" - старт слота
+  endTime: string;    // "11:10" - время окончания с учётом длительности + буфер
+  slotsCount: number; // сколько слотов сетки занимает услуга
   available: boolean;
+}
+
+/**
+ * Параметры генерации слотов
+ */
+export interface GenerateSlotsParams {
+  config: ScheduleConfig;
+  serviceDuration: number;  // длительность услуги в минутах
+  bookings: Booking[];      // существующие брони
+  selectedDate: Date;       // выбранная дата
 }
 
 /**
  * Дефолтная конфигурация
  */
 export const DEFAULT_SCHEDULE: ScheduleConfig = {
-  startTime: '09:00',
-  endTime: '19:00',
-  interval: 30,
-  buffer: 10, // 10 минут буфер между клиентами
+  workDayStart: '09:00',
+  workDayEnd: '19:00',
+  slotStep: 15,           // 15 минут шаг сетки
+  bufferBetweenClients: 10, // 10 минут буфер
 };
+
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 
 /**
  * Парсит время "HH:MM" в минуты от начала дня
@@ -45,6 +73,19 @@ function minutesToTime(minutes: number): string {
 }
 
 /**
+ * ЭТАП 1 — СОЗДАНИЕ ВРЕМЕННОЙ СЕТКИ
+ * Генерирует базовые точки начала записи
+ */
+function createTimeGrid(startMinutes: number, endMinutes: number, step: number): number[] {
+  const grid: number[] = [];
+  for (let time = startMinutes; time < endMinutes; time += step) {
+    grid.push(time);
+  }
+  return grid;
+}
+
+/**
+ * ЭТАП 3 — ПРОВЕРКА КОНЦА РАБОЧЕГО ДНЯ
  * Проверяет, помещается ли услуга в рабочий день
  */
 function fitsInWorkDay(
@@ -53,48 +94,107 @@ function fitsInWorkDay(
   buffer: number,
   workEnd: number
 ): boolean {
-  const slotEnd = slotStart + serviceDuration + buffer;
+  const totalDuration = serviceDuration + buffer;
+  const slotEnd = slotStart + totalDuration;
   return slotEnd <= workEnd;
 }
 
 /**
- * Генерирует массив временных слотов
- * 
- * @param config - конфигурация расписания
- * @param serviceDuration - длительность услуги в минутах
- * @param bookedSlots - массив занятых слотов (опционально)
- * @returns массив доступных слотов
+ * ЭТАП 5 & 7 — ПРОВЕРКА ПЕРЕСЕЧЕНИЙ
+ * Проверяет, пересекается ли слот с существующими бронями
  */
-export function generateTimeSlots(
-  config: ScheduleConfig = DEFAULT_SCHEDULE,
-  serviceDuration: number = 60,
-  bookedSlots: string[] = []
-): TimeSlot[] {
-  const { startTime, endTime, interval, buffer } = config;
+function hasIntersection(
+  slotStart: number,
+  serviceDuration: number,
+  buffer: number,
+  bookings: Booking[]
+): boolean {
+  const slotEnd = slotStart + serviceDuration + buffer;
   
-  const startMinutes = parseTimeToMinutes(startTime);
-  const endMinutes = parseTimeToMinutes(endTime);
+  for (const booking of bookings) {
+    const bookingStart = parseTimeToMinutes(booking.start);
+    const bookingEnd = parseTimeToMinutes(booking.end);
+    
+    // Слот пересекается если: slotStart < bookingEnd AND slotEnd > bookingStart
+    if (slotStart < bookingEnd && slotEnd > bookingStart) {
+      return true;
+    }
+  }
   
-  // Множество занятых слотов для быстрого поиска
-  const bookedSet = new Set(bookedSlots);
+  return false;
+}
+
+/**
+ * ЭТАП 6 — ФИЛЬТРАЦИЯ ПРОШЕДШЕГО ВРЕМЕНИ
+ * Проверяет, является ли слот прошедшим
+ */
+function isSlotPast(slotTime: string, selectedDate: Date): boolean {
+  const now = new Date();
+  
+  // Проверяем, та же ли это дата
+  const isToday = selectedDate.toDateString() === now.toDateString();
+  
+  if (!isToday) {
+    return false;
+  }
+  
+  const [slotHours, slotMinutes] = slotTime.split(':').map(Number);
+  const slotDate = new Date(now);
+  slotDate.setHours(slotHours, slotMinutes, 0, 0);
+  
+  // Слот прошедший если его время меньше текущего + 5 минут буфер
+  const bufferTime = 5 * 60 * 1000;
+  return slotDate.getTime() < (now.getTime() - bufferTime);
+}
+
+// ========== ОСНОВНАЯ ФУНКЦИЯ ГЕНЕРАЦИИ ==========
+
+/**
+ * Генерирует доступные временные слоты
+ * Работает в 5 этапов согласно спецификации
+ */
+export function generateTimeSlots(params: GenerateSlotsParams): TimeSlot[] {
+  const { config, serviceDuration, bookings, selectedDate } = params;
+  const { workDayStart, workDayEnd, slotStep, bufferBetweenClients } = config;
+  
+  // ЭТАП 1: Создание временной сетки
+  const startMinutes = parseTimeToMinutes(workDayStart);
+  const endMinutes = parseTimeToMinutes(workDayEnd);
+  const timeGrid = createTimeGrid(startMinutes, endMinutes, slotStep);
+  
+  // ЭТАП 2: Расчёт полного времени записи (услуга + буфер)
+  const totalDuration = serviceDuration + bufferBetweenClients;
   
   const slots: TimeSlot[] = [];
   
-  // Генерируем слоты с учётом интервала
-  for (let time = startMinutes; time < endMinutes; time += interval) {
-    // Проверяем, помещается ли услуга в рабочий день
-    if (!fitsInWorkDay(time, serviceDuration, buffer, endMinutes)) {
+  for (const slotStart of timeGrid) {
+    // ЭТАП 3: Проверка конца рабочего дня
+    if (!fitsInWorkDay(slotStart, serviceDuration, bufferBetweenClients, endMinutes)) {
       continue;
     }
     
-    const slotTime = minutesToTime(time);
-    const slotEndTime = minutesToTime(time + serviceDuration);
-    const isBooked = bookedSet.has(slotTime);
+    // ЭТАП 7: Проверка пересечений с существующими бронями
+    if (hasIntersection(slotStart, serviceDuration, bufferBetweenClients, bookings)) {
+      continue;
+    }
+    
+    // ЭТАП 6: Фильтрация прошедшего времени
+    const slotTime = minutesToTime(slotStart);
+    if (isSlotPast(slotTime, selectedDate)) {
+      continue;
+    }
+    
+    // ЭТАП 4: Расчёт сколько слотов сетки занимает услуга
+    const slotsCount = Math.ceil(totalDuration / slotStep);
+    
+    // Время окончания (только услуга, без буфера - буфер невидим для клиента)
+    const endTime = minutesToTime(slotStart + serviceDuration);
     
     slots.push({
       time: slotTime,
-      endTime: slotEndTime,
-      available: !isBooked,
+      endTime: endTime,
+      slotsCount,
+      available: true,
     });
   }
   
@@ -102,45 +202,29 @@ export function generateTimeSlots(
 }
 
 /**
- * Проверяет, является ли слот прошедшим
- * @param slotTime - время слота "HH:MM"
- * @param date - дата слота
+ * Упрощённая функция для совместимости
  */
-export function isSlotPast(slotTime: string, date: Date): boolean {
-  const now = new Date();
+export function generateSimpleTimeSlots(
+  config: ScheduleConfig = DEFAULT_SCHEDULE,
+  serviceDuration: number = 60,
+  bookedSlots: string[] = []
+): TimeSlot[] {
+  // Конвертируем старый формат занятых слотов в новый
+  const bookings: Booking[] = bookedSlots.map(time => ({
+    start: time,
+    end: minutesToTime(parseTimeToMinutes(time) + serviceDuration),
+  }));
   
-  // Проверяем, та же ли это дата
-  const isToday = date.toDateString() === now.toDateString();
-  
-  if (!isToday) {
-    return false; // Будущие даты - не прошедшие
-  }
-  
-  const [slotHours, slotMinutes] = slotTime.split(':').map(Number);
-  const slotDate = new Date(now);
-  slotDate.setHours(slotHours, slotMinutes, 0, 0);
-  
-  // Слот прошедший если его время меньше текущего + небольшой буфер (5 минут)
-  const bufferTime = 5 * 60 * 1000; // 5 минут
-  return slotDate.getTime() < (now.getTime() - bufferTime);
+  return generateTimeSlots({
+    config,
+    serviceDuration,
+    bookings,
+    selectedDate: new Date(),
+  });
 }
 
 /**
- * Фильтрует прошедшие слоты
- */
-export function filterPastSlots(slots: TimeSlot[], date: Date): TimeSlot[] {
-  return slots.filter(slot => !isSlotPast(slot.time, date));
-}
-
-/**
- * Получает только доступные слоты (не прошедшие и не занятые)
- */
-export function getAvailableSlots(slots: TimeSlot[], date: Date): TimeSlot[] {
-  return filterPastSlots(slots, date).filter(slot => slot.available);
-}
-
-/**
- * Форматирует слоты для отображения (только время)
+ * Форматирует слоты для отображения
  */
 export function formatSlotsForDisplay(slots: TimeSlot[]): string[] {
   return slots.map(slot => slot.time);
