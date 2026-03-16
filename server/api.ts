@@ -59,13 +59,26 @@ router.get('/booked-slots', async (req, res) => {
     }
 
     const bookings = await db.getBookingsByDate(date as string);
-    // Возвращаем только подтверждённые брони
+    const bufferTime = await db.getBufferTime();
+    
+    // Возвращаем только подтверждённые брони с учётом буфера
     const bookedSlots = bookings
       .filter(b => b.status === 'confirmed')
-      .map(b => ({
-        start: b.time,
-        end: `${String(Math.floor((parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]) + b.duration) / 60)).padStart(2, '0')}:${String((parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]) + b.duration) % 60).padStart(2, '0')}`,
-      }));
+      .map(b => {
+        // Вычисляем end time с учётом duration + buffer
+        const totalMinutes = parseInt(b.time.split(':')[0]) * 60 + 
+                            parseInt(b.time.split(':')[1]) + 
+                            b.duration + 
+                            bufferTime;
+        
+        const endHours = Math.floor(totalMinutes / 60);
+        const endMins = totalMinutes % 60;
+        
+        return {
+          start: b.time,
+          end: `${String(endHours).padStart(2, '0')}:${String(endMins).padStart(2, '0')}`,
+        };
+      });
     
     res.json(bookedSlots);
   } catch (error) {
