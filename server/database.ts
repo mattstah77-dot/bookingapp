@@ -225,7 +225,8 @@ class AsyncDatabase {
 
     let currentTime = startHour * 60 + startMin;
     const endTime = endHour * 60 + endMin;
-    const serviceEndLimit = endTime - serviceDuration - bufferTime;
+    // Услуга должна закончиться до конца рабочего дня (буфер - после)
+    const serviceEndLimit = endTime - serviceDuration;
 
     while (currentTime <= serviceEndLimit) {
       const hours = Math.floor(currentTime / 60);
@@ -247,14 +248,15 @@ class AsyncDatabase {
       }
 
       if (!isBreak) {
-        // Проверяем занятые слоты
+        // Проверяем занятые слоты (с учётом буфера)
         const isAvailable = !bookings.some(booking => {
           const [bookH, bookM] = booking.time.split(':').map(Number);
           const bookStart = bookH * 60 + bookM;
+          // Конец с учётом длительности + буфер
           const bookEnd = bookStart + booking.duration + bufferTime;
 
           // Проверяем перекрытие временных интервалов
-          return (currentTime < bookEnd && (currentTime + serviceDuration) > bookStart);
+          return (currentTime < bookEnd && (currentTime + serviceDuration + bufferTime) > bookStart);
         });
 
         if (isAvailable) {
@@ -262,7 +264,7 @@ class AsyncDatabase {
         }
       }
 
-      currentTime += 30; // Шаг 30 минут
+      currentTime += 15; // Шаг 15 минут
     }
 
     return slots;
