@@ -3,6 +3,24 @@ import { db } from './database.js';
 
 const router = Router();
 
+// Проверка админа
+const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+
+function isAdmin(telegramId?: number): boolean {
+  return telegramId ? ADMIN_IDS.includes(telegramId) : false;
+}
+
+// Middleware для проверки админа
+function requireAdmin(req: any, res: any, next: any) {
+  // Получаем Telegram ID из заголовка или query
+  const telegramId = parseInt(req.headers['x-telegram-id'] as string || req.query.telegramId as string || '0');
+  
+  if (!isAdmin(telegramId)) {
+    return res.status(403).json({ error: 'Access denied' });
+  }
+  next();
+}
+
 // Получить все услуги
 router.get('/services', async (req, res) => {
   try {
@@ -105,7 +123,7 @@ router.delete('/bookings/:id', async (req, res) => {
 // ========== ADMIN ROUTES ==========
 
 // Получить все бронирования с фильтрами
-router.get('/admin/bookings', async (req, res) => {
+router.get('/admin/bookings', requireAdmin, async (req, res) => {
   try {
     const { date, status, startDate, endDate } = req.query;
     
@@ -125,7 +143,7 @@ router.get('/admin/bookings', async (req, res) => {
 });
 
 // Получить даты с бронированиями (для календаря)
-router.get('/admin/bookings/dates', async (req, res) => {
+router.get('/admin/bookings/dates', requireAdmin, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
     
@@ -141,7 +159,7 @@ router.get('/admin/bookings/dates', async (req, res) => {
 });
 
 // Изменить статус бронирования
-router.patch('/admin/bookings/:id', async (req, res) => {
+router.patch('/admin/bookings/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const { status } = req.body;
@@ -163,7 +181,7 @@ router.patch('/admin/bookings/:id', async (req, res) => {
 });
 
 // Удалить бронирование (админ)
-router.delete('/admin/bookings/:id', async (req, res) => {
+router.delete('/admin/bookings/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
     const deleted = await db.deleteBooking(id);

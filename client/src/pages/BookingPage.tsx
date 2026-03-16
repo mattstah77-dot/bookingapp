@@ -8,6 +8,7 @@ import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
+import { Check, ArrowRight, RotateCcw } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -19,6 +20,14 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+
+  const isDark = (() => {
+    const bg = theme.bgColor;
+    if (!bg || bg === '#ffffff') return false;
+    const hex = bg.replace('#', '');
+    if (hex.length !== 6) return false;
+    return parseInt(hex, 16) < 128000;
+  })();
 
   const {
     selectedService,
@@ -57,7 +66,6 @@ export default function BookingPage() {
 
       setLoading(true);
       try {
-        // Форматируем дату в локальном времени
         const year = selectedDate.getFullYear();
         const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
         const day = String(selectedDate.getDate()).padStart(2, '0');
@@ -97,7 +105,6 @@ export default function BookingPage() {
     setError(null);
 
     try {
-      // Форматируем дату в локальном времени
       const year = selectedDate.getFullYear();
       const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
       const day = String(selectedDate.getDate()).padStart(2, '0');
@@ -137,28 +144,31 @@ export default function BookingPage() {
     reset();
   }, [reset]);
 
-  // Определение темной темы - ДО ранних return
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
-
-  // Ошибка
+  // Ошибка при загрузке услуг
   if (error && step === 'services') {
     return (
       <div 
-        className="min-h-screen p-4 flex items-center justify-center"
-        style={{ backgroundColor: theme.bgColor }}
+        style={{ 
+          minHeight: '100vh', 
+          padding: '24px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: theme.bgColor,
+        }}
       >
-        <div className="text-center">
-          <p style={{ color: theme.buttonColor }}>{error}</p>
-          <Button 
-            onClick={() => window.location.reload()} 
-            style={{ marginTop: 16 }}
-          >
+        <div style={{ 
+          textAlign: 'center',
+          background: isDark 
+            ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+            : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+          backdropFilter: 'blur(24px)',
+          borderRadius: '28px',
+          padding: '40px 32px',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+        }}>
+          <p style={{ color: theme.buttonColor, marginBottom: '20px', fontSize: '16px', fontWeight: 500 }}>{error}</p>
+          <Button onClick={() => window.location.reload()}>
             Повторить
           </Button>
         </div>
@@ -170,68 +180,124 @@ export default function BookingPage() {
   if (bookingSuccess) {
     return (
       <div 
-        className="min-h-screen p-4"
         style={{ 
+          minHeight: '100vh', 
+          padding: '24px',
           backgroundColor: theme.bgColor,
-          paddingTop: 'env(safe-area-inset-top, 20px)',
-          paddingBottom: 'env(safe-area-inset-bottom, 20px)',
+          paddingTop: 'env(safe-area-inset-top, 24px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 24px)',
         }}
       >
-        <div className="max-w-md mx-auto flex flex-col items-center justify-center min-h-[80vh]">
+        <div 
+          style={{ 
+            maxWidth: '440px', 
+            margin: '0 auto',
+            display: 'flex', 
+            flexDirection: 'column',
+            alignItems: 'center', 
+            justifyContent: 'center',
+            minHeight: '80vh',
+            animation: 'scaleIn 0.5s ease',
+          }}
+        >
           <div 
-            className="text-center animate-fade-in"
+            className="glass-card"
             style={{ 
-              backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.8)',
-              backdropFilter: 'blur(12px)',
-              borderRadius: 24,
-              padding: 40,
-              border: `1px solid ${theme.hintColor}20`,
+              textAlign: 'center',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+                : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
+              backdropFilter: 'blur(24px)',
+              borderRadius: '32px',
+              padding: '56px 40px',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              boxShadow: isDark 
+                ? '0 24px 64px rgba(0,0,0,0.6)' 
+                : '0 24px 64px rgba(0,0,0,0.12)',
+              width: '100%',
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <div 
-              className="text-6xl mb-4"
-              style={{ color: theme.buttonColor }}
-            >
-              ✓
+            {/* Декоративный фон */}
+            <div style={{
+              position: 'absolute',
+              top: '-100px',
+              left: '-100px',
+              width: '200px',
+              height: '200px',
+              background: `radial-gradient(circle, ${theme.buttonColor}25 0%, transparent 70%)`,
+              borderRadius: '50%',
+            }} />
+            <div style={{
+              position: 'absolute',
+              bottom: '-50px',
+              right: '-50px',
+              width: '150px',
+              height: '150px',
+              background: `radial-gradient(circle, ${theme.buttonColor}15 0%, transparent 70%)`,
+              borderRadius: '50%',
+            }} />
+            
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div 
+                style={{ 
+                  width: '80px',
+                  height: '80px',
+                  margin: '0 auto 24px',
+                  borderRadius: '50%',
+                  background: `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: `0 8px 24px ${theme.buttonColor}40`,
+                }}
+              >
+                <Check size={40} style={{ color: theme.buttonTextColor }} />
+              </div>
+              
+              <h2 
+                style={{ 
+                  fontSize: '28px', 
+                  fontWeight: 800,
+                  marginBottom: '16px',
+                  color: theme.textColor,
+                  letterSpacing: '-0.5px',
+                }}
+              >
+                Запись подтверждена
+              </h2>
+              <p style={{ color: theme.hintColor, fontSize: '16px', lineHeight: 1.6 }}>
+                Мы ждем вас <br/>
+                <span style={{ color: theme.textColor, fontWeight: 600 }}>{formattedDate}</span> в <span style={{ color: theme.textColor, fontWeight: 600 }}>{selectedSlot}</span>
+              </p>
+              <Button
+                onClick={handleReset}
+                style={{ marginTop: '36px' }}
+              >
+                <span style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <RotateCcw size={18} />
+                  Записаться снова
+                </span>
+              </Button>
             </div>
-            <h2 
-              className="text-2xl font-semibold mb-2"
-              style={{ color: theme.textColor }}
-            >
-              Запись подтверждена!
-            </h2>
-            <p style={{ color: theme.hintColor }}>
-              Мы ждём вас {formattedDate} в {selectedSlot}
-            </p>
-            <Button
-              onClick={handleReset}
-              style={{ 
-                marginTop: 24,
-                backgroundColor: theme.buttonColor,
-                color: theme.buttonTextColor,
-              }}
-            >
-              Записаться снова
-            </Button>
           </div>
         </div>
       </div>
     );
   }
 
-  // Debug
-  console.log('DEBUG:', { step, selectedService: !!selectedService, selectedDate: !!selectedDate, selectedSlot });
-
   return (
     <div 
-      className="min-h-screen p-4"
       style={{ 
+        minHeight: '100vh', 
+        padding: '24px',
         backgroundColor: theme.bgColor,
-        paddingTop: 'env(safe-area-inset-top, 20px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 20px)',
+        paddingTop: 'env(safe-area-inset-top, 24px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 24px)',
       }}
     >
-      <div className="max-w-md mx-auto">
+      <div style={{ maxWidth: '440px', margin: '0 auto' }}>
         {/* Заголовок */}
         {step === 'services' && <Greeting />}
 
@@ -241,10 +307,15 @@ export default function BookingPage() {
         {/* Сообщение об ошибке */}
         {error && (
           <div 
-            className="mb-4 p-3 rounded-xl"
             style={{ 
-              backgroundColor: `${theme.buttonColor}15`,
+              marginBottom: '24px', 
+              padding: '16px 20px',
+              borderRadius: '16px',
+              background: `${theme.buttonColor}15`,
               color: theme.buttonColor,
+              fontSize: '14px',
+              fontWeight: 500,
+              border: `1px solid ${theme.buttonColor}20`,
             }}
           >
             {error}
@@ -253,21 +324,22 @@ export default function BookingPage() {
 
         {/* ЭКРАН 1: Список услуг */}
         {step === 'services' && (
-          <div className="space-y-3">
+          <div>
             {services.map((service, index) => (
-              <div 
+              <ServiceCard
                 key={service.id}
-                className="card"
-                style={{ animationDelay: `${index * 50}ms` }}
-              >
-                <ServiceCard
-                  service={service}
-                  onSelect={selectService}
-                />
-              </div>
+                service={service}
+                onSelect={selectService}
+                index={index}
+              />
             ))}
             {services.length === 0 && !error && (
-              <div className="text-center py-8" style={{ color: theme.hintColor }}>
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '64px 0', 
+                color: theme.hintColor,
+                animation: 'fadeIn 0.5s ease',
+              }}>
                 Загрузка услуг...
               </div>
             )}
@@ -276,25 +348,35 @@ export default function BookingPage() {
 
         {/* ЭКРАН 2: Календарь и выбор времени */}
         {step === 'calendar' && selectedService && (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Выбранная услуга */}
             <div 
-              className="rounded-xl p-4 border"
+              className="glass-card"
               style={{ 
-                borderColor: `${theme.hintColor}20`,
-                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+                borderRadius: '24px',
+                padding: '24px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                backdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                boxShadow: isDark 
+                  ? '0 8px 32px rgba(0,0,0,0.4)' 
+                  : '0 8px 32px rgba(0,0,0,0.08)',
               }}
             >
-              <div className="flex justify-between items-center">
-                <span className="font-medium" style={{ color: theme.textColor }}>
-                  {selectedService.name}
-                </span>
-                <span style={{ color: theme.buttonColor }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontWeight: 700, color: theme.textColor, fontSize: '18px' }}>
+                    {selectedService.name}
+                  </span>
+                  <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
+                    Длительность: {selectedService.duration} мин
+                  </div>
+                </div>
+                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '20px' }}>
                   {selectedService.price} ₽
                 </span>
-              </div>
-              <div className="text-sm mt-1" style={{ color: theme.hintColor }}>
-                Длительность: {selectedService.duration} мин
               </div>
             </div>
 
@@ -316,27 +398,34 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* ЭКРАН 2б: Выбор времени (когда дата выбрана, но слот нет) */}
+        {/* ЭКРАН 2б: Выбор времени */}
         {step === 'time' && selectedService && selectedDate && !selectedSlot && (
-          <div className="space-y-4">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Выбранная услуга */}
             <div 
-              className="rounded-xl p-4 border"
+              className="glass-card"
               style={{ 
-                borderColor: `${theme.hintColor}20`,
-                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+                borderRadius: '24px',
+                padding: '24px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                backdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
               }}
             >
-              <div className="flex justify-between items-center">
-                <span className="font-medium" style={{ color: theme.textColor }}>
-                  {selectedService.name}
-                </span>
-                <span style={{ color: theme.buttonColor }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <span style={{ fontWeight: 700, color: theme.textColor, fontSize: '18px' }}>
+                    {selectedService.name}
+                  </span>
+                  <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
+                    {formattedDate}
+                  </div>
+                </div>
+                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '20px' }}>
                   {selectedService.price} ₽
                 </span>
-              </div>
-              <div className="text-sm mt-1" style={{ color: theme.hintColor }}>
-                {formattedDate}
               </div>
             </div>
 
@@ -351,49 +440,67 @@ export default function BookingPage() {
 
         {/* ЭКРАН 3: Подтверждение */}
         {step === 'confirm' && selectedService && selectedDate && selectedSlot && (
-          <div className="space-y-4 animate-fade-in">
+          <div style={{ animation: 'fadeIn 0.4s ease', display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Карточка подтверждения */}
             <div 
-              className="rounded-2xl p-6 border space-y-4"
+              className="glass-card"
               style={{ 
-                borderColor: `${theme.hintColor}20`,
-                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+                borderRadius: '28px',
+                padding: '32px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
+                backdropFilter: 'blur(24px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                boxShadow: isDark 
+                  ? '0 16px 48px rgba(0,0,0,0.5)' 
+                  : '0 16px 48px rgba(0,0,0,0.1)',
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
-              <h3 
-                className="text-xl font-semibold text-center"
-                style={{ color: theme.textColor }}
-              >
-                Подтвердите запись
-              </h3>
+              <div style={{
+                position: 'absolute',
+                top: '-30px',
+                right: '-30px',
+                width: '100px',
+                height: '100px',
+                background: `radial-gradient(circle, ${theme.buttonColor}20 0%, transparent 70%)`,
+                borderRadius: '50%',
+              }} />
+              
+              <div style={{ position: 'relative', zIndex: 1 }}>
+                <h3 
+                  style={{ 
+                    textAlign: 'center',
+                    fontSize: '22px', 
+                    fontWeight: 700,
+                    marginBottom: '28px',
+                    color: theme.textColor,
+                  }}
+                >
+                  Подтвердите запись
+                </h3>
 
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span style={{ color: theme.hintColor }}>Услуга</span>
-                  <span className="font-medium" style={{ color: theme.textColor }}>
-                    {selectedService.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: theme.hintColor }}>Дата</span>
-                  <span className="font-medium" style={{ color: theme.textColor }}>
-                    {formattedDate}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span style={{ color: theme.hintColor }}>Время</span>
-                  <span className="font-medium" style={{ color: theme.textColor }}>
-                    {selectedSlot}
-                  </span>
-                </div>
-                <div className="border-t pt-3 flex justify-between">
-                  <span style={{ color: theme.hintColor }}>Итого</span>
-                  <span 
-                    className="font-bold text-lg"
-                    style={{ color: theme.buttonColor }}
-                  >
-                    {selectedService.price} ₽
-                  </span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Услуга</span>
+                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedService.name}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Дата</span>
+                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{formattedDate}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Время</span>
+                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedSlot}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                    <span style={{ color: theme.hintColor, fontSize: '15px', fontWeight: 500 }}>Итого</span>
+                    <span style={{ fontWeight: 700, fontSize: '24px', color: theme.buttonColor }}>
+                      {selectedService.price} ₽
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -402,20 +509,29 @@ export default function BookingPage() {
             <Button
               onClick={handleBooking}
               loading={submitting}
-              style={{ 
-                backgroundColor: theme.buttonColor,
-                color: theme.buttonTextColor,
-                width: '100%',
-              }}
+              size="lg"
             >
-              Записаться
+              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                Подтвердить запись
+                <ArrowRight size={20} />
+              </span>
             </Button>
 
             {/* Кнопка сброса */}
             <button
               onClick={handleReset}
-              className="block w-full text-center text-sm py-2"
-              style={{ color: theme.hintColor }}
+              style={{ 
+                display: 'block',
+                width: '100%',
+                textAlign: 'center',
+                padding: '16px',
+                color: theme.hintColor,
+                fontSize: '14px',
+                fontWeight: 500,
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+              }}
             >
               Начать заново
             </button>
@@ -423,24 +539,14 @@ export default function BookingPage() {
         )}
       </div>
 
-      {/* Стили */}
       <style>{`
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
-        .card {
-          opacity: 0;
-          animation: fadeIn 0.4s ease-out forwards;
-        }
         @keyframes fadeIn {
-          from {
-            opacity: 0;
-            transform: translateY(10px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.95); }
+          to { opacity: 1; transform: scale(1); }
         }
       `}</style>
     </div>

@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
-import { Calendar } from '../components/Calendar/Calendar';
-import { Button } from '../components/Button/Button';
-import { ChevronLeft, ChevronRight, CalendarDays, Users, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react';
+import { 
+  ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
+  CalendarDays, Users, Settings, BarChart3
+} from 'lucide-react';
 
 interface Booking {
   id: string;
@@ -20,6 +21,15 @@ interface Booking {
 
 const API_BASE = '/api';
 
+function getTelegramId(): number | undefined {
+  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+}
+
+function getAuthHeaders(): HeadersInit {
+  const tgId = getTelegramId();
+  return tgId ? { 'x-telegram-id': String(tgId) } : {};
+}
+
 export default function AdminPage() {
   const theme = useTelegramTheme();
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -28,8 +38,8 @@ export default function AdminPage() {
   const [filter, setFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [bookedDates, setBookedDates] = useState<Record<string, number>>({});
+  const [accessDenied, setAccessDenied] = useState(false);
 
-  // Определение темной темы
   const isDark = (() => {
     const bg = theme.bgColor;
     if (!bg || bg === '#ffffff') return false;
@@ -38,7 +48,6 @@ export default function AdminPage() {
     return parseInt(hex, 16) < 128000;
   })();
 
-  // Загружаем даты с бронированиями для календаря
   useEffect(() => {
     const fetchBookedDates = async () => {
       const year = currentMonth.getFullYear();
@@ -48,7 +57,16 @@ export default function AdminPage() {
       const endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`;
       
       try {
-        const res = await fetch(`${API_BASE}/admin/bookings/dates?startDate=${startDate}&endDate=${endDate}`);
+        const res = await fetch(
+          `${API_BASE}/admin/bookings/dates?startDate=${startDate}&endDate=${endDate}`,
+          { headers: getAuthHeaders() }
+        );
+        
+        if (res.status === 403) {
+          setAccessDenied(true);
+          return;
+        }
+        
         const data = await res.json();
         setBookedDates(data);
       } catch (err) {
@@ -59,7 +77,6 @@ export default function AdminPage() {
     fetchBookedDates();
   }, [currentMonth]);
 
-  // Загружаем бронирования
   useEffect(() => {
     const fetchBookings = async () => {
       setLoading(true);
@@ -70,7 +87,13 @@ export default function AdminPage() {
           url += `date=${dateStr}`;
         }
         
-        const res = await fetch(url);
+        const res = await fetch(url, { headers: getAuthHeaders() });
+        
+        if (res.status === 403) {
+          setAccessDenied(true);
+          return;
+        }
+        
         const data = await res.json();
         setBookings(data);
       } catch (err) {
@@ -83,34 +106,30 @@ export default function AdminPage() {
     fetchBookings();
   }, [selectedDate]);
 
-  // Фильтрованные бронирования
   const filteredBookings = useMemo(() => {
     if (filter === 'all') return bookings;
     return bookings.filter(b => b.status === filter);
   }, [bookings, filter]);
 
-  // Статистика
   const stats = useMemo(() => {
     const confirmed = bookings.filter(b => b.status === 'confirmed').length;
     const cancelled = bookings.filter(b => b.status === 'cancelled').length;
-    const totalRevenue = bookings
-      .filter(b => b.status === 'confirmed')
-      .reduce((sum, b) => sum + b.price, 0);
-    return { confirmed, cancelled, total: bookings.length, totalRevenue };
+    return { confirmed, cancelled, total: bookings.length };
   }, [bookings]);
 
-  // Форматирование даты
   const formatDate = (dateStr: string) => {
     const date = new Date(dateStr + 'T00:00:00');
     return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
-  // Изменение статуса
   const handleStatusChange = async (id: string, status: 'confirmed' | 'cancelled') => {
     try {
       await fetch(`${API_BASE}/admin/bookings/${id}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
+        },
         body: JSON.stringify({ status }),
       });
       
@@ -120,19 +139,20 @@ export default function AdminPage() {
     }
   };
 
-  // Удаление
   const handleDelete = async (id: string) => {
     if (!confirm('Удалить эту запись?')) return;
     
     try {
-      await fetch(`${API_BASE}/admin/bookings/${id}`, { method: 'DELETE' });
+      await fetch(`${API_BASE}/admin/bookings/${id}`, { 
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
       setBookings(prev => prev.filter(b => b.id !== id));
     } catch (err) {
       console.error('Failed to delete:', err);
     }
   };
 
-  // Переход к предыдущему/следующему месяцу
   const goToPrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
@@ -143,195 +163,344 @@ export default function AdminPage() {
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
+  if (accessDenied) {
+    return (
+      <div 
+        style={{ 
+          minHeight: '100vh', 
+          padding: '24px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: theme.bgColor,
+        }}
+      >
+        <div style={{ 
+          textAlign: 'center',
+          background: isDark 
+            ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+            : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+          backdropFilter: 'blur(24px)',
+          borderRadius: '28px',
+          padding: '48px 32px',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+        }}>
+          <div style={{ fontSize: '56px', marginBottom: '20px' }}>⛔</div>
+          <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '10px', color: theme.textColor }}>
+            Доступ запрещен
+          </h2>
+          <p style={{ color: theme.hintColor }}>
+            У вас нет доступа к админ-панели
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div 
-      className="min-h-screen p-4"
       style={{ 
+        minHeight: '100vh', 
+        padding: '24px',
         backgroundColor: theme.bgColor,
-        paddingTop: 'env(safe-area-inset-top, 20px)',
-        paddingBottom: 'env(safe-area-inset-bottom, 20px)',
+        paddingTop: 'env(safe-area-inset-top, 24px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 24px)',
       }}
     >
-      <div className="max-w-md mx-auto">
+      <div style={{ maxWidth: '440px', margin: '0 auto' }}>
         {/* Заголовок */}
-        <div className="mb-6">
-          <h1 
-            className="text-2xl font-semibold"
-            style={{ color: theme.textColor }}
-          >
+        <div style={{ marginBottom: '32px' }}>
+          <div style={{
+            width: '48px',
+            height: '4px',
+            background: `linear-gradient(90deg, ${theme.buttonColor}, ${theme.buttonColor}80)`,
+            borderRadius: '2px',
+            marginBottom: '16px',
+          }} />
+          <h1 style={{ color: theme.textColor, fontSize: '28px', fontWeight: 800 }}>
             Админ-панель
           </h1>
-          <p style={{ color: theme.hintColor }}>Управление записями</p>
+          <p style={{ color: theme.hintColor, fontSize: '15px', marginTop: '6px' }}>
+            Управление записями
+          </p>
         </div>
 
         {/* Статистика */}
-        <div className="grid grid-cols-2 gap-3 mb-6">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginBottom: '28px' }}>
           <div 
-            className="rounded-2xl p-4"
+            className="glass-card"
             style={{ 
-              backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
-              border: `1px solid ${theme.hintColor}20`,
+              borderRadius: '22px',
+              padding: '22px',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <CheckCircle size={18} style={{ color: '#22c55e' }} />
-              <span className="text-sm" style={{ color: theme.hintColor }}>Подтверждено</span>
+            <div style={{
+              position: 'absolute',
+              top: '-20px',
+              right: '-20px',
+              width: '80px',
+              height: '80px',
+              background: 'radial-gradient(circle, rgba(34,197,94,0.2) 0%, transparent 70%)',
+              borderRadius: '50%',
+            }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <CheckCircle size={20} style={{ color: '#22c55e' }} />
+                <span style={{ fontSize: '13px', color: theme.hintColor, fontWeight: 500 }}>Подтверждено</span>
+              </div>
+              <span style={{ fontSize: '32px', fontWeight: 700, color: theme.textColor }}>
+                {stats.confirmed}
+              </span>
             </div>
-            <span className="text-2xl font-bold" style={{ color: theme.textColor }}>
-              {stats.confirmed}
-            </span>
           </div>
           
           <div 
-            className="rounded-2xl p-4"
+            className="glass-card"
             style={{ 
-              backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
-              border: `1px solid ${theme.hintColor}20`,
+              borderRadius: '22px',
+              padding: '22px',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+              backdropFilter: 'blur(20px)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              position: 'relative',
+              overflow: 'hidden',
             }}
           >
-            <div className="flex items-center gap-2 mb-1">
-              <XCircle size={18} style={{ color: '#ef4444' }} />
-              <span className="text-sm" style={{ color: theme.hintColor }}>Отменено</span>
+            <div style={{
+              position: 'absolute',
+              top: '-20px',
+              right: '-20px',
+              width: '80px',
+              height: '80px',
+              background: 'radial-gradient(circle, rgba(239,68,68,0.2) 0%, transparent 70%)',
+              borderRadius: '50%',
+            }} />
+            <div style={{ position: 'relative', zIndex: 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                <XCircle size={20} style={{ color: '#ef4444' }} />
+                <span style={{ fontSize: '13px', color: theme.hintColor, fontWeight: 500 }}>Отменено</span>
+              </div>
+              <span style={{ fontSize: '32px', fontWeight: 700, color: theme.textColor }}>
+                {stats.cancelled}
+              </span>
             </div>
-            <span className="text-2xl font-bold" style={{ color: theme.textColor }}>
-              {stats.cancelled}
-            </span>
           </div>
         </div>
 
-        {/* Мини-календарь */}
+        {/* Календарь */}
         <div 
-          className="rounded-2xl p-4 mb-6"
+          className="glass-card"
           style={{ 
-            backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
-            border: `1px solid ${theme.hintColor}20`,
+            borderRadius: '26px',
+            padding: '26px',
+            marginBottom: '28px',
+            background: isDark 
+              ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+              : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+            backdropFilter: 'blur(20px)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+            position: 'relative',
+            overflow: 'hidden',
           }}
         >
-          <div className="flex items-center justify-between mb-4">
-            <button onClick={goToPrevMonth} style={{ padding: 8 }}>
-              <ChevronLeft size={20} style={{ color: theme.textColor }} />
-            </button>
-            <span className="font-semibold" style={{ color: theme.textColor }}>
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </span>
-            <button onClick={goToNextMonth} style={{ padding: 8 }}>
-              <ChevronRight size={20} style={{ color: theme.textColor }} />
-            </button>
-          </div>
+          <div style={{
+            position: 'absolute',
+            top: '-40px',
+            left: '-40px',
+            width: '120px',
+            height: '120px',
+            background: `radial-gradient(circle, ${theme.buttonColor}15 0%, transparent 70%)`,
+            borderRadius: '50%',
+          }} />
           
-          {/* Дни недели */}
-          <div className="grid grid-cols-7 gap-1 mb-2">
-            {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
-              <div key={day} className="text-center text-xs font-medium" style={{ color: theme.hintColor }}>
-                {day}
+          <div style={{ position: 'relative', zIndex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px' }}>
+              <button 
+                onClick={goToPrevMonth} 
+                style={{ padding: '12px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                <ChevronLeft size={24} style={{ color: theme.textColor }} />
+              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <CalendarDays size={22} style={{ color: theme.buttonColor }} />
+                <span style={{ fontWeight: 700, color: theme.textColor, fontSize: '16px' }}>
+                  {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+                </span>
               </div>
-            ))}
-          </div>
-          
-          {/* Дни месяца */}
-          <div className="grid grid-cols-7 gap-1">
-            {(() => {
-              const year = currentMonth.getFullYear();
-              const month = currentMonth.getMonth();
-              const firstDay = new Date(year, month, 1);
-              const lastDay = new Date(year, month + 1, 0);
-              const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
-              
-              const days = [];
-              for (let i = 0; i < startDayOfWeek; i++) {
-                days.push(<div key={`empty-${i}`} />);
-              }
-              
-              for (let i = 1; i <= lastDay.getDate(); i++) {
-                const date = new Date(year, month, i);
-                const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
-                const hasBookings = bookedDates[dateStr] > 0;
-                const isSelected = selectedDate && 
-                  selectedDate.getDate() === i && 
-                  selectedDate.getMonth() === month && 
-                  selectedDate.getFullYear() === year;
-                const isToday = new Date().getDate() === i && 
-                  new Date().getMonth() === month && 
-                  new Date().getFullYear() === year;
+              <button 
+                onClick={goToNextMonth} 
+                style={{ padding: '12px', background: 'transparent', border: 'none', cursor: 'pointer' }}
+              >
+                <ChevronRight size={24} style={{ color: theme.textColor }} />
+              </button>
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '10px' }}>
+              {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(day => (
+                <div 
+                  key={day} 
+                  style={{ textAlign: 'center', fontSize: '12px', fontWeight: 600, color: theme.hintColor, padding: '10px 0' }}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+              {(() => {
+                const year = currentMonth.getFullYear();
+                const month = currentMonth.getMonth();
+                const firstDay = new Date(year, month, 1);
+                const lastDay = new Date(year, month + 1, 0);
+                const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
                 
-                days.push(
-                  <button
-                    key={i}
-                    onClick={() => setSelectedDate(date)}
-                    className="aspect-square rounded-xl flex items-center justify-center text-sm relative"
-                    style={{
-                      backgroundColor: isSelected ? theme.buttonColor : isToday ? `${theme.buttonColor}20` : 'transparent',
-                      color: isSelected ? theme.buttonTextColor : theme.textColor,
-                    }}
-                  >
-                    {i}
-                    {hasBookings && (
-                      <span 
-                        className="absolute -bottom-0.5 w-1 h-1 rounded-full"
-                        style={{ backgroundColor: theme.buttonColor }}
-                      />
-                    )}
-                  </button>
-                );
-              }
-              
-              return days;
-            })()}
+                const days = [];
+                for (let i = 0; i < startDayOfWeek; i++) {
+                  days.push(<div key={`empty-${i}`} style={{ aspectRatio: '1' }} />);
+                }
+                
+                for (let i = 1; i <= lastDay.getDate(); i++) {
+                  const date = new Date(year, month, i);
+                  const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
+                  const hasBookings = bookedDates[dateStr] > 0;
+                  const isSelected = selectedDate && 
+                    selectedDate.getDate() === i && 
+                    selectedDate.getMonth() === month && 
+                    selectedDate.getFullYear() === year;
+                  const isToday = new Date().getDate() === i && 
+                    new Date().getMonth() === month && 
+                    new Date().getFullYear() === year;
+                  
+                  days.push(
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDate(date)}
+                      style={{
+                        aspectRatio: '1',
+                        borderRadius: '12px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '14px',
+                        fontWeight: 500,
+                        transition: 'all 0.25s ease',
+                        background: isSelected 
+                          ? theme.buttonColor 
+                          : isToday 
+                            ? (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)')
+                            : 'transparent',
+                        color: isSelected 
+                          ? theme.buttonTextColor 
+                          : theme.textColor,
+                        border: 'none',
+                        cursor: 'pointer',
+                        position: 'relative',
+                      }}
+                    >
+                      {i}
+                      {hasBookings && !isSelected && (
+                        <span 
+                          style={{ 
+                            position: 'absolute',
+                            bottom: '3px',
+                            width: '5px',
+                            height: '5px',
+                            borderRadius: '50%',
+                            backgroundColor: theme.buttonColor,
+                          }}
+                        />
+                      )}
+                    </button>
+                  );
+                }
+                
+                return days;
+              })()}
+            </div>
           </div>
         </div>
 
         {/* Фильтры */}
-        <div className="flex gap-2 mb-4">
+        <div style={{ display: 'flex', gap: '10px', marginBottom: '24px' }}>
           {(['all', 'confirmed', 'cancelled'] as const).map(f => (
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className="px-4 py-2 rounded-xl text-sm font-medium transition-all"
               style={{
-                backgroundColor: filter === f ? theme.buttonColor : 'transparent',
-                color: filter === f ? theme.buttonTextColor : theme.hintColor,
-                border: `1px solid ${filter === f ? theme.buttonColor : theme.hintColor}30`,
+                flex: 1,
+                padding: '14px 8px',
+                borderRadius: '14px',
+                fontSize: '13px',
+                fontWeight: 600,
+                transition: 'all 0.3s ease',
+                background: filter === f 
+                  ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                  : isDark 
+                    ? 'rgba(255,255,255,0.08)'
+                    : 'rgba(0,0,0,0.04)',
+                color: filter === f 
+                  ? theme.buttonTextColor 
+                  : theme.hintColor,
+                border: `1px solid ${filter === f ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+                cursor: 'pointer',
               }}
             >
-              {f === 'all' ? 'Все' : f === 'confirmed' ? 'Подтверждённые' : 'Отменённые'}
+              {f === 'all' ? 'Все' : f === 'confirmed' ? 'Подтвержд.' : 'Отменен.'}
             </button>
           ))}
         </div>
 
-        {/* Список бронирований */}
+        {/* Список */}
         {loading ? (
-          <div className="text-center py-8" style={{ color: theme.hintColor }}>
+          <div style={{ textAlign: 'center', padding: '64px 0', color: theme.hintColor }}>
             Загрузка...
           </div>
         ) : filteredBookings.length === 0 ? (
-          <div className="text-center py-8" style={{ color: theme.hintColor }}>
+          <div style={{ textAlign: 'center', padding: '64px 0', color: theme.hintColor }}>
             Нет записей
           </div>
         ) : (
-          <div className="space-y-3">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             {filteredBookings.map(booking => (
               <div
                 key={booking.id}
-                className="rounded-2xl p-4"
+                className="glass-card"
                 style={{ 
-                  backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
-                  border: `1px solid ${theme.hintColor}20`,
+                  borderRadius: '22px',
+                  padding: '22px',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                  backdropFilter: 'blur(20px)',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
                   opacity: booking.status === 'cancelled' ? 0.6 : 1,
                 }}
               >
-                <div className="flex justify-between items-start mb-2">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '14px' }}>
                   <div>
-                    <div className="font-semibold" style={{ color: theme.textColor }}>
+                    <div style={{ fontWeight: 700, color: theme.textColor, fontSize: '17px' }}>
                       {booking.serviceName}
                     </div>
-                    <div className="text-sm" style={{ color: theme.hintColor }}>
+                    <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
                       {formatDate(booking.date)} в {booking.time}
                     </div>
                   </div>
                   <div 
-                    className="px-2 py-1 rounded-lg text-xs font-medium"
                     style={{ 
-                      backgroundColor: booking.status === 'confirmed' ? '#22c55e20' : '#ef444420',
+                      padding: '8px 14px',
+                      borderRadius: '12px',
+                      fontSize: '12px',
+                      fontWeight: 600,
+                      background: booking.status === 'confirmed' ? 'rgba(34,197,94,0.15)' : 'rgba(239,68,68,0.15)',
                       color: booking.status === 'confirmed' ? '#22c55e' : '#ef4444',
                     }}
                   >
@@ -340,44 +509,60 @@ export default function AdminPage() {
                 </div>
                 
                 {booking.clientName && (
-                  <div className="text-sm mb-2" style={{ color: theme.hintColor }}>
-                    Клиент: {booking.clientName}
+                  <div style={{ fontSize: '14px', color: theme.hintColor, marginBottom: '14px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Users size={14} />
+                    {booking.clientName}
                     {booking.clientPhone && ` • ${booking.clientPhone}`}
                   </div>
                 )}
                 
-                <div className="flex justify-between items-center">
-                  <span className="font-bold" style={{ color: theme.buttonColor }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, color: theme.buttonColor, fontSize: '20px' }}>
                     {booking.price} ₽
                   </span>
                   
-                  <div className="flex gap-2">
+                  <div style={{ display: 'flex', gap: '8px' }}>
                     {booking.status === 'confirmed' ? (
                       <button
                         onClick={() => handleStatusChange(booking.id, 'cancelled')}
-                        className="p-2 rounded-xl"
-                        style={{ backgroundColor: '#ef444420' }}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '14px',
+                          background: 'rgba(239,68,68,0.15)',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
                         title="Отменить"
                       >
-                        <XCircle size={18} style={{ color: '#ef4444' }} />
+                        <XCircle size={20} style={{ color: '#ef4444' }} />
                       </button>
                     ) : (
                       <button
                         onClick={() => handleStatusChange(booking.id, 'confirmed')}
-                        className="p-2 rounded-xl"
-                        style={{ backgroundColor: '#22c55e20' }}
+                        style={{
+                          padding: '12px',
+                          borderRadius: '14px',
+                          background: 'rgba(34,197,94,0.15)',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
                         title="Подтвердить"
                       >
-                        <CheckCircle size={18} style={{ color: '#22c55e' }} />
+                        <CheckCircle size={20} style={{ color: '#22c55e' }} />
                       </button>
                     )}
                     <button
                       onClick={() => handleDelete(booking.id)}
-                      className="p-2 rounded-xl"
-                      style={{ backgroundColor: '#ef444420' }}
+                      style={{
+                        padding: '12px',
+                        borderRadius: '14px',
+                        background: 'rgba(239,68,68,0.15)',
+                        border: 'none',
+                        cursor: 'pointer',
+                      }}
                       title="Удалить"
                     >
-                      <Trash2 size={18} style={{ color: '#ef4444' }} />
+                      <Trash2 size={20} style={{ color: '#ef4444' }} />
                     </button>
                   </div>
                 </div>
@@ -388,11 +573,8 @@ export default function AdminPage() {
       </div>
 
       <style>{`
-        .animate-fade-in {
-          animation: fadeIn 0.3s ease-out forwards;
-        }
         @keyframes fadeIn {
-          from { opacity: 0; transform: translateY(10px); }
+          from { opacity: 0; transform: translateY(12px); }
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>

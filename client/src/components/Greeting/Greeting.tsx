@@ -5,15 +5,41 @@ export function Greeting() {
   const message = getGreeting();
 
   return (
-    <div 
-      className="mb-6 animate-fade-in"
-    >
+    <div style={{ 
+      marginBottom: '36px', 
+      animation: 'fadeIn 0.5s ease',
+      position: 'relative',
+    }}>
+      {/* Декоративная линия */}
+      <div style={{
+        width: '48px',
+        height: '4px',
+        background: `linear-gradient(90deg, ${theme.buttonColor}, ${theme.buttonColor}80)`,
+        borderRadius: '2px',
+        marginBottom: '16px',
+      }} />
+      
       <h1 
-        className="text-2xl font-semibold leading-tight"
-        style={{ color: theme.textColor }}
+        style={{ 
+          color: theme.textColor,
+          fontSize: '32px',
+          fontWeight: 800,
+          lineHeight: 1.2,
+          letterSpacing: '-0.5px',
+        }}
       >
         {message}
       </h1>
+      
+      {/* Подзаголовок */}
+      <p style={{ 
+        color: theme.hintColor, 
+        fontSize: '15px', 
+        marginTop: '12px',
+        fontWeight: 400,
+      }}>
+        Запись онлайн за несколько секунд
+      </p>
     </div>
   );
 }

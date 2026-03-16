@@ -1,5 +1,5 @@
 import { useTelegramTheme } from '../../hooks/useTelegram';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, ArrowLeft } from 'lucide-react';
 
 interface BackButtonProps {
   onClick: () => void;
@@ -7,36 +7,34 @@ interface BackButtonProps {
 
 export function BackButton({ onClick }: BackButtonProps) {
   const theme = useTelegramTheme();
+  
+  const isDark = (() => {
+    const bg = theme.bgColor;
+    if (!bg || bg === '#ffffff') return false;
+    const hex = bg.replace('#', '');
+    if (hex.length !== 6) return false;
+    return parseInt(hex, 16) < 128000;
+  })();
 
   return (
     <button
       onClick={onClick}
-      className="back-button"
-      style={{ color: theme.linkColor }}
+      style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: '10px',
+        padding: '16px 8px',
+        marginBottom: '24px',
+        borderRadius: '16px',
+        transition: 'all 0.3s ease',
+        background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+        border: 'none',
+        cursor: 'pointer',
+        color: theme.linkColor,
+      }}
     >
-      <ChevronLeft size={22} />
-      <span className="text-base font-medium">Назад</span>
-
-      <style>{`
-        .back-button {
-          display: flex;
-          align-items: center;
-          gap: 6px;
-          padding: 10px 4px;
-          margin-bottom: 16px;
-          border-radius: 12px;
-          transition: all 0.2s ease;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-        }
-        .back-button:hover {
-          background: ${theme.linkColor}10;
-        }
-        .back-button:active {
-          transform: scale(0.98);
-        }
-      `}</style>
+      <ArrowLeft size={20} />
+      <span style={{ fontSize: '15px', fontWeight: 600 }}>Назад</span>
     </button>
   );
 }

@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { Button } from '../Button/Button';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface CalendarProps {
   selectedDate: Date | null;
@@ -11,6 +11,7 @@ interface CalendarProps {
 export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
   const theme = useTelegramTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
+  
   const isDark = (() => {
     const bg = theme.bgColor;
     if (!bg || bg === '#ffffff') return false;
@@ -32,13 +33,11 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
     const lastDay = new Date(year, month + 1, 0);
     const days: (Date | null)[] = [];
 
-    // Добавляем пустые дни в начале недели (понедельник = 0)
     const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     for (let i = 0; i < startDayOfWeek; i++) {
       days.push(null);
     }
 
-    // Добавляем дни месяца
     for (let i = 1; i <= lastDay.getDate(); i++) {
       days.push(new Date(year, month, i));
     }
@@ -76,116 +75,118 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
 
   return (
     <div 
-      className="calendar-container"
+      className="glass-card"
       style={{ 
-        backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255, 255, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
-        borderColor: `${theme.hintColor}20`,
-        boxShadow: isDark ? '0 8px 30px rgba(0,0,0,0.3)' : '0 8px 30px rgba(0,0,0,0.08)',
+        background: isDark 
+          ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+          : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+        borderRadius: '28px',
+        padding: '28px',
+        boxShadow: isDark 
+          ? '0 12px 40px rgba(0,0,0,0.5)' 
+          : '0 12px 40px rgba(0,0,0,0.1)',
+        position: 'relative',
+        overflow: 'hidden',
       }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToPrevMonth}
-          style={{ padding: '10px' }}
-        >
-          <ChevronLeft size={22} style={{ color: theme.textColor }} />
-        </Button>
+      {/* Декоративный элемент */}
+      <div style={{
+        position: 'absolute',
+        top: '-40px',
+        left: '-40px',
+        width: '120px',
+        height: '120px',
+        background: `radial-gradient(circle, ${theme.buttonColor}15 0%, transparent 70%)`,
+        borderRadius: '50%',
+      }} />
+      
+      <div style={{ position: 'relative', zIndex: 1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+          <Button variant="ghost" size="sm" onClick={goToPrevMonth} style={{ padding: '14px' }}>
+            <ChevronLeft size={26} style={{ color: theme.textColor }} />
+          </Button>
 
-        <h3 
-          className="text-lg font-semibold"
-          style={{ color: theme.textColor }}
-        >
-          {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-        </h3>
-
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={goToNextMonth}
-          style={{ padding: '10px' }}
-        >
-          <ChevronRight size={22} style={{ color: theme.textColor }} />
-        </Button>
-      </div>
-
-      {/* Week Days */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
-        {weekDays.map(day => (
-          <div 
-            key={day} 
-            className="text-center text-xs font-semibold py-2"
-            style={{ color: theme.hintColor }}
-          >
-            {day}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <CalendarDays size={22} style={{ color: theme.buttonColor }} />
+            <h3 style={{ color: theme.textColor, fontSize: '18px', fontWeight: 700 }}>
+              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+            </h3>
           </div>
-        ))}
-      </div>
 
-      {/* Days Grid */}
-      <div className="grid grid-cols-7 gap-1.5">
-        {daysInMonth.map((date, index) => {
-          if (!date) {
-            return <div key={`empty-${index}`} className="aspect-square" />;
-          }
+          <Button variant="ghost" size="sm" onClick={goToNextMonth} style={{ padding: '14px' }}>
+            <ChevronRight size={26} style={{ color: theme.textColor }} />
+          </Button>
+        </div>
 
-          const isToday = isSameDay(date, today);
-          const isSelected = isSameDay(date, selectedDate);
-          const past = isPast(date);
-
-          return (
-            <button
-              key={date.toISOString()}
-              onClick={() => !past && onDateSelect(date)}
-              disabled={past}
-              className="calendar-day"
-              style={{
-                backgroundColor: isSelected 
-                  ? theme.buttonColor 
-                  : isToday 
-                    ? `${theme.buttonColor}15`
-                    : 'transparent',
-                color: isSelected 
-                  ? theme.buttonTextColor 
-                  : past 
-                    ? theme.hintColor 
-                    : theme.textColor,
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '14px' }}>
+          {weekDays.map(day => (
+            <div 
+              key={day} 
+              style={{ 
+                textAlign: 'center', 
+                padding: '12px 0',
+                fontSize: '13px',
+                fontWeight: 600,
+                color: theme.hintColor,
               }}
             >
-              {date.getDate()}
-            </button>
-          );
-        })}
-      </div>
+              {day}
+            </div>
+          ))}
+        </div>
 
-      <style>{`
-        .calendar-container {
-          border-radius: 24px;
-          border: 1px solid;
-          padding: 24px;
-          transition: all 0.25s ease;
-        }
-        .calendar-day {
-          aspect-ratio: 1;
-          border-radius: 14px;
-          font-size: 0.9rem;
-          font-weight: 500;
-          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        .calendar-day:hover:not(:disabled) {
-          transform: scale(1.1);
-          background-color: ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)'} !important;
-        }
-        .calendar-day:active:not(:disabled) {
-          transform: scale(0.95);
-        }
-      `}</style>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
+          {daysInMonth.map((date, index) => {
+            if (!date) {
+              return <div key={`empty-${index}`} style={{ aspectRatio: '1' }} />;
+            }
+
+            const isToday = isSameDay(date, today);
+            const isSelected = isSameDay(date, selectedDate);
+            const past = isPast(date);
+
+            return (
+              <button
+                key={date.toISOString()}
+                onClick={() => !past && onDateSelect(date)}
+                disabled={past}
+                style={{
+                  aspectRatio: '1',
+                  borderRadius: '14px',
+                  fontSize: '15px',
+                  fontWeight: 500,
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: past ? 'default' : 'pointer',
+                  background: isSelected 
+                    ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                    : isToday 
+                      ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')
+                      : 'transparent',
+                  color: isSelected 
+                    ? theme.buttonTextColor 
+                    : past 
+                      ? theme.hintColor 
+                      : theme.textColor,
+                  border: 'none',
+                  opacity: past ? 0.35 : 1,
+                  boxShadow: isSelected 
+                    ? `0 6px 16px ${theme.buttonColor}40` 
+                    : 'none',
+                  position: 'relative',
+                }}
+              >
+                {date.getDate()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
