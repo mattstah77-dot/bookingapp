@@ -28,11 +28,11 @@ export function useBooking() {
     }));
   }, []);
 
-  const selectSlot = useCallback((slot: string) => {
+  const selectSlot = useCallback((slot: string | null) => {
     setState(prev => ({
       ...prev,
       selectedSlot: slot,
-      step: 'confirm',
+      step: slot ? 'confirm' : 'calendar',
     }));
   }, []);
 

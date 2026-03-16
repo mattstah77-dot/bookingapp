@@ -60,7 +60,8 @@ export default function BookingPage() {
   // Умная генерация слотов на клиенте
   const { 
     slots: generatedSlots, 
-    loading: slotsLoading 
+    loading: slotsLoading,
+    refetch: refetchSlots 
   } = useTimeSlots({
     selectedDate,
     serviceDuration: selectedService?.duration || 60,
@@ -109,11 +110,21 @@ export default function BookingPage() {
 
       setBookingSuccess(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Ошибка бронирования');
+      const errorMessage = err instanceof Error ? err.message : 'Ошибка бронирования';
+      
+      // Если слот занят - сбрасываем выбор и возвращаем на выбор времени
+      if (errorMessage.includes('no longer available') || errorMessage.includes('занят')) {
+        setError('Время уже занято. Пожалуйста, выберите другое.');
+        selectSlot(null); // Сбрасываем выбранный слот
+        refetchSlots(); // Обновляем список слотов
+        goBack(); // Возвращаем на экран выбора времени
+      } else {
+        setError(errorMessage);
+      }
     } finally {
       setSubmitting(false);
     }
-  }, [selectedService, selectedDate, selectedSlot]);
+  }, [selectedService, selectedDate, selectedSlot, selectSlot, refetchSlots, goBack]);
 
   // Переинициализация при успешном бронировании
   const handleReset = useCallback(() => {
