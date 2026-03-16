@@ -1,4 +1,4 @@
-import { useMemo, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
 export function useTelegramTheme(): TelegramTheme {

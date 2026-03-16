@@ -23,6 +23,8 @@ declare global {
               is_premium?: boolean;
             };
           };
+          onEvent(eventType: string, callback: () => void): void;
+          offEvent(eventType: string, callback: () => void): void;
         };
       };
     }
