@@ -44,13 +44,13 @@ export interface GenerateSlotsParams {
 }
 
 /**
- * Дефолтная конфигурация
+ * Дефолтная конфигурация (должна совпадать с бэкендом)
  */
 export const DEFAULT_SCHEDULE: ScheduleConfig = {
-  workDayStart: '09:00',
-  workDayEnd: '19:00',
+  workDayStart: '10:00',
+  workDayEnd: '20:00',
   slotStep: 15,           // 15 минут шаг сетки
-  bufferBetweenClients: 10, // 10 минут буфер
+  bufferBetweenClients: 15, // 15 минут буфер (как в database.ts)
 };
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
