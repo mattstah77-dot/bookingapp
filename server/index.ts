@@ -36,8 +36,12 @@ app.post('/webhook', async (req, res) => {
   res.send('OK');
 });
 
-// SPA fallback
+// SPA fallback (для /admin и других роутов)
 app.get('*', (req, res) => {
+  // Не отдаём index.html для API запросов
+  if (req.path.startsWith('/api')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

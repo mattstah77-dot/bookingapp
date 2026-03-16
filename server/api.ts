@@ -102,4 +102,80 @@ router.delete('/bookings/:id', async (req, res) => {
   }
 });
 
+// ========== ADMIN ROUTES ==========
+
+// Получить все бронирования с фильтрами
+router.get('/admin/bookings', async (req, res) => {
+  try {
+    const { date, status, startDate, endDate } = req.query;
+    
+    const filters: any = {};
+    if (date) filters.date = date;
+    if (status) filters.status = status;
+    if (startDate && endDate) {
+      filters.startDate = startDate;
+      filters.endDate = endDate;
+    }
+    
+    const bookings = await db.getAllBookings(filters);
+    res.json(bookings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// Получить даты с бронированиями (для календаря)
+router.get('/admin/bookings/dates', async (req, res) => {
+  try {
+    const { startDate, endDate } = req.query;
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({ error: 'startDate and endDate are required' });
+    }
+    
+    const dateCounts = await db.getBookedDates(startDate as string, endDate as string);
+    res.json(dateCounts);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch dates' });
+  }
+});
+
+// Изменить статус бронирования
+router.patch('/admin/bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    
+    if (!status || !['confirmed', 'cancelled'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
+    
+    const booking = await db.updateBookingStatus(id, status);
+    
+    if (booking) {
+      res.json(booking);
+    } else {
+      res.status(404).json({ error: 'Booking not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update booking' });
+  }
+});
+
+// Удалить бронирование (админ)
+router.delete('/admin/bookings/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await db.deleteBooking(id);
+    
+    if (deleted) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Booking not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
 export default router;

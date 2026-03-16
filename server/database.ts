@@ -22,10 +22,18 @@ export interface Booking {
   time: string; // HH:MM
   duration: number;
   price: number;
+  status: 'confirmed' | 'cancelled';
   clientName?: string;
   clientPhone?: string;
   telegramId?: number;
   createdAt: string;
+}
+
+export interface BookingFilters {
+  date?: string;
+  status?: 'confirmed' | 'cancelled';
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface Schedule {
@@ -120,15 +128,64 @@ class AsyncDatabase {
     return this.db.bookings.filter(b => b.date === date);
   }
 
-  async createBooking(booking: Omit<Booking, 'id' | 'createdAt'>): Promise<Booking> {
+  async createBooking(booking: Omit<Booking, 'id' | 'createdAt' | 'status'>): Promise<Booking> {
     const newBooking: Booking = {
       ...booking,
       id: crypto.randomUUID(),
+      status: 'confirmed',
       createdAt: new Date().toISOString(),
     };
     this.db.bookings.push(newBooking);
     this.scheduleSave();
     return newBooking;
+  }
+
+  async updateBookingStatus(id: string, status: 'confirmed' | 'cancelled'): Promise<Booking | null> {
+    const booking = this.db.bookings.find(b => b.id === id);
+    if (booking) {
+      booking.status = status;
+      this.scheduleSave();
+      return booking;
+    }
+    return null;
+  }
+
+  async getAllBookings(filters: BookingFilters = {}): Promise<Booking[]> {
+    let bookings = [...this.db.bookings];
+    
+    if (filters.date) {
+      bookings = bookings.filter(b => b.date === filters.date);
+    }
+    
+    if (filters.status) {
+      bookings = bookings.filter(b => b.status === filters.status);
+    }
+    
+    if (filters.startDate && filters.endDate) {
+      bookings = bookings.filter(b => b.date >= filters.startDate! && b.date <= filters.endDate!);
+    }
+    
+    bookings.sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return a.time.localeCompare(b.time);
+    });
+    
+    return bookings;
+  }
+
+  async getBookedDates(startDate: string, endDate: string): Promise<Record<string, number>> {
+    const bookings = this.db.bookings.filter(b => 
+      b.status === 'confirmed' && 
+      b.date >= startDate && 
+      b.date <= endDate
+    );
+    
+    const dateCounts: Record<string, number> = {};
+    bookings.forEach(b => {
+      dateCounts[b.date] = (dateCounts[b.date] || 0) + 1;
+    });
+    
+    return dateCounts;
   }
 
   async deleteBooking(id: string): Promise<boolean> {
