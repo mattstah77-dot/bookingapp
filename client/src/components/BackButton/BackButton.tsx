@@ -1,5 +1,5 @@
 import { useTelegramTheme } from '../../hooks/useTelegram';
-import { ChevronLeft, ArrowLeft } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 
 interface BackButtonProps {
   onClick: () => void;

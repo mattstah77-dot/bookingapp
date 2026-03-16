@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
-  CalendarDays, Users, Settings, BarChart3
+  CalendarDays, Users
 } from 'lucide-react';
 
 interface Booking {
