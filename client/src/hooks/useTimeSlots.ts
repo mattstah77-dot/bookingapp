@@ -47,16 +47,17 @@ export function useTimeSlots({
       const dateStr = `${year}-${month}-${day}`;
 
       try {
+        // Используем новый эндпоинт для занятых слотов
         const res = await fetch(
-          `${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`
+          `${API_BASE}/booked-slots?date=${dateStr}`
         );
         const data = await res.json();
         
-        // API возвращает массив занятых времён - конвертируем в формат брони
+        // API возвращает массив занятых интервалов
         const bookedTimes: Booking[] = Array.isArray(data) 
-          ? data.map((time: string) => ({
-              start: time,
-              end: time, // API должно возвращать полные интервалы, но для совместимости
+          ? data.map((item: { start: string; end: string }) => ({
+              start: item.start,
+              end: item.end,
             }))
           : [];
         
@@ -103,13 +104,13 @@ export function useTimeSlots({
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    fetch(`${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`)
+    fetch(`${API_BASE}/booked-slots?date=${dateStr}`)
       .then(res => res.json())
-      .then((data: string[]) => {
+      .then((data: { start: string; end: string }[]) => {
         const bookedTimes: Booking[] = Array.isArray(data) 
-          ? data.map((time: string) => ({
-              start: time,
-              end: time,
+          ? data.map((item) => ({
+              start: item.start,
+              end: item.end,
             }))
           : [];
         setBookings(bookedTimes);

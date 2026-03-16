@@ -49,6 +49,52 @@ router.get('/slots', async (req, res) => {
   }
 });
 
+// Получить занятые слоты на дату (для клиента)
+router.get('/booked-slots', async (req, res) => {
+  try {
+    const { date } = req.query;
+    
+    if (!date) {
+      return res.status(400).json({ error: 'date is required' });
+    }
+
+    const bookings = await db.getBookingsByDate(date as string);
+    // Возвращаем только подтверждённые брони
+    const bookedSlots = bookings
+      .filter(b => b.status === 'confirmed')
+      .map(b => ({
+        start: b.time,
+        end: `${String(Math.floor((parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]) + b.duration) / 60)).padStart(2, '0')}:${String((parseInt(b.time.split(':')[0]) * 60 + parseInt(b.time.split(':')[1]) + b.duration) % 60).padStart(2, '0')}`,
+      }));
+    
+    res.json(bookedSlots);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch booked slots' });
+  }
+});
+
+// Сбросить все бронирования (для тестирования)
+router.post('/reset-bookings', async (req, res) => {
+  try {
+    const { secret } = req.body;
+    // Простой секрет для защиты
+    if (secret !== 'booking-reset-2024') {
+      return res.status(403).json({ error: 'Invalid secret' });
+    }
+    
+    // Получаем текущую базу
+    const allBookings = await db.getBookings();
+    // Удаляем все брони
+    for (const booking of allBookings) {
+      await db.deleteBooking(booking.id);
+    }
+    
+    res.json({ success: true, deleted: allBookings.length });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reset bookings' });
+  }
+});
+
 // Получить все бронирования
 router.get('/bookings', async (req, res) => {
   try {
