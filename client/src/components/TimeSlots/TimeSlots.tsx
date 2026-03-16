@@ -1,9 +1,10 @@
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { Clock } from 'lucide-react';
 import { useRef } from 'react';
+import type { TimeSlot } from '../../utils/timeSlots';
 
 interface TimeSlotsProps {
-  slots: string[];
+  slots: TimeSlot[];
   selectedSlot: string | null;
   onSlotSelect: (slot: string) => void;
   loading?: boolean;
@@ -118,12 +119,14 @@ export function TimeSlots({
           ))
         ) : (
           slots.map((slot) => {
-            const isSelected = selectedSlot === slot;
+            const isSelected = selectedSlot === slot.time;
+            const isAvailable = slot.available;
             
             return (
               <button
-                key={slot}
-                onClick={() => onSlotSelect(slot)}
+                key={slot.time}
+                onClick={() => isAvailable && onSlotSelect(slot.time)}
+                disabled={!isAvailable}
                 style={{
                   minWidth: '80px',
                   height: '48px',
@@ -134,22 +137,29 @@ export function TimeSlots({
                   transition: 'all 0.15s ease',
                   background: isSelected 
                     ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-                    : isDark 
-                      ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))'
-                      : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                    : isAvailable
+                      ? isDark 
+                        ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))'
+                        : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))'
+                      : isDark
+                        ? 'rgba(35,35,35,0.5)'
+                        : 'rgba(0,0,0,0.03)',
                   backdropFilter: 'blur(16px)',
                   color: isSelected 
                     ? theme.buttonTextColor 
-                    : theme.textColor,
+                    : isAvailable
+                      ? theme.textColor
+                      : theme.hintColor,
                   border: `1px solid ${isSelected ? 'transparent' : (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')}`,
                   boxShadow: isSelected 
                     ? `0 4px 12px ${theme.buttonColor}40` 
                     : (isDark ? '0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.05)'),
-                  cursor: 'pointer',
+                  cursor: isAvailable ? 'pointer' : 'not-allowed',
                   flexShrink: 0,
+                  opacity: isAvailable ? 1 : 0.5,
                 }}
               >
-                {slot}
+                {slot.time}
               </button>
             );
           })

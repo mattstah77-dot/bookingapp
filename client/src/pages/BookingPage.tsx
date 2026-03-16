@@ -1,6 +1,7 @@
 import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { useBooking } from '../hooks/useBooking';
+import { useTimeSlots } from '../hooks/useTimeSlots';
 import type { Service } from '../types/booking';
 import { Greeting } from '../components/Greeting/Greeting';
 import { ServiceCard } from '../components/ServiceCard/ServiceCard';
@@ -16,8 +17,6 @@ const API_BASE = '/api';
 export default function BookingPage() {
   const theme = useTelegramTheme();
   const [services, setServices] = useState<Service[]>([]);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
-  const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
@@ -58,36 +57,14 @@ export default function BookingPage() {
     fetchServices();
   }, []);
 
-  // Загрузка слотов при выборе даты
-  useEffect(() => {
-    const fetchSlots = async () => {
-      if (!selectedDate || !selectedService) {
-        setTimeSlots([]);
-        return;
-      }
-
-      setLoading(true);
-      try {
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
-        const day = String(selectedDate.getDate()).padStart(2, '0');
-        const dateStr = `${year}-${month}-${day}`;
-        
-        const res = await fetch(
-          `${API_BASE}/slots?date=${dateStr}&duration=${selectedService.duration}`
-        );
-        const data = await res.json();
-        setTimeSlots(data);
-      } catch (err) {
-        console.error('Failed to fetch slots:', err);
-        setError('Не удалось загрузить время');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchSlots();
-  }, [selectedDate, selectedService]);
+  // Умная генерация слотов на клиенте
+  const { 
+    slots: generatedSlots, 
+    loading: slotsLoading 
+  } = useTimeSlots({
+    selectedDate,
+    serviceDuration: selectedService?.duration || 60,
+  });
 
   // Форматированная дата
   const formattedDate = useMemo(() => {
@@ -142,7 +119,6 @@ export default function BookingPage() {
   const handleReset = useCallback(() => {
     setBookingSuccess(false);
     setError(null);
-    setTimeSlots([]);
     reset();
   }, [reset]);
 
@@ -386,10 +362,10 @@ export default function BookingPage() {
             {/* Слоты времени */}
             {selectedDate && (
               <TimeSlots
-                slots={timeSlots}
+                slots={generatedSlots}
                 selectedSlot={selectedSlot}
                 onSlotSelect={selectSlot}
-                loading={loading}
+                loading={slotsLoading}
               />
             )}
           </div>
