@@ -4,6 +4,7 @@ import { useBooking } from '../hooks/useBooking';
 import type { Service } from '../types/booking';
 import { Greeting } from '../components/Greeting/Greeting';
 import { ServiceCard } from '../components/ServiceCard/ServiceCard';
+import { ServiceModal } from '../components/ServiceModal/ServiceModal';
 import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
@@ -20,6 +21,7 @@ export default function BookingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
+  const [selectedServiceForModal, setSelectedServiceForModal] = useState<Service | null>(null);
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -324,12 +326,18 @@ export default function BookingPage() {
 
         {/* ЭКРАН 1: Список услуг */}
         {step === 'services' && (
-          <div>
+          <div 
+            style={{ 
+              display: 'grid', 
+              gridTemplateColumns: 'repeat(2, 1fr)', 
+              gap: '14px',
+            }}
+          >
             {services.map((service, index) => (
               <ServiceCard
                 key={service.id}
                 service={service}
-                onSelect={selectService}
+                onSelect={setSelectedServiceForModal}
                 index={index}
               />
             ))}
@@ -338,7 +346,6 @@ export default function BookingPage() {
                 textAlign: 'center', 
                 padding: '64px 0', 
                 color: theme.hintColor,
-                animation: 'fadeIn 0.5s ease',
               }}>
                 Загрузка услуг...
               </div>
@@ -348,33 +355,23 @@ export default function BookingPage() {
 
         {/* ЭКРАН 2: Календарь и выбор времени */}
         {step === 'calendar' && selectedService && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {/* Выбранная услуга */}
             <div 
-              className="glass-card"
               style={{ 
-                borderRadius: '24px',
-                padding: '24px',
+                borderRadius: '18px',
+                padding: '16px',
                 background: isDark 
-                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
-                backdropFilter: 'blur(20px)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-                boxShadow: isDark 
-                  ? '0 8px 32px rgba(0,0,0,0.4)' 
-                  : '0 8px 32px rgba(0,0,0,0.08)',
+                  ? 'rgba(35,35,35,0.9)' 
+                  : 'rgba(255,255,255,0.9)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontWeight: 700, color: theme.textColor, fontSize: '18px' }}>
-                    {selectedService.name}
-                  </span>
-                  <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
-                    Длительность: {selectedService.duration} мин
-                  </div>
-                </div>
-                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '20px' }}>
+                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>
+                  {selectedService.name}
+                </span>
+                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '18px' }}>
                   {selectedService.price} ₽
                 </span>
               </div>
@@ -398,49 +395,11 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* ЭКРАН 2б: Выбор времени */}
-        {step === 'time' && selectedService && selectedDate && !selectedSlot && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Выбранная услуга */}
-            <div 
-              className="glass-card"
-              style={{ 
-                borderRadius: '24px',
-                padding: '24px',
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
-                backdropFilter: 'blur(20px)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                  <span style={{ fontWeight: 700, color: theme.textColor, fontSize: '18px' }}>
-                    {selectedService.name}
-                  </span>
-                  <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
-                    {formattedDate}
-                  </div>
-                </div>
-                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '20px' }}>
-                  {selectedService.price} ₽
-                </span>
-              </div>
-            </div>
-
-            <TimeSlots
-              slots={timeSlots}
-              selectedSlot={selectedSlot}
-              onSlotSelect={selectSlot}
-              loading={loading}
-            />
-          </div>
-        )}
+        
 
         {/* ЭКРАН 3: Подтверждение */}
         {step === 'confirm' && selectedService && selectedDate && selectedSlot && (
-          <div style={{ animation: 'fadeIn 0.4s ease', display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             {/* Карточка подтверждения */}
             <div 
               className="glass-card"
@@ -538,6 +497,18 @@ export default function BookingPage() {
           </div>
         )}
       </div>
+
+      {/* Модалка услуги */}
+      {selectedServiceForModal && (
+        <ServiceModal
+          service={selectedServiceForModal}
+          onSelect={(service) => {
+            setSelectedServiceForModal(null);
+            selectService(service);
+          }}
+          onClose={() => setSelectedServiceForModal(null)}
+        />
+      )}
 
       <style>{`
         @keyframes fadeIn {

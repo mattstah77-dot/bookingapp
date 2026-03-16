@@ -75,117 +75,86 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
 
   return (
     <div 
-      className="glass-card"
       style={{ 
         background: isDark 
-          ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
-          : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-        borderRadius: '28px',
-        padding: '28px',
-        boxShadow: isDark 
-          ? '0 12px 40px rgba(0,0,0,0.5)' 
-          : '0 12px 40px rgba(0,0,0,0.1)',
-        position: 'relative',
-        overflow: 'hidden',
+          ? 'rgba(35,35,35,0.9)' 
+          : 'rgba(255,255,255,0.9)',
+        backdropFilter: 'blur(16px)',
+        borderRadius: '20px',
+        padding: '18px',
+        border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
       }}
     >
-      {/* Декоративный элемент */}
-      <div style={{
-        position: 'absolute',
-        top: '-40px',
-        left: '-40px',
-        width: '120px',
-        height: '120px',
-        background: `radial-gradient(circle, ${theme.buttonColor}15 0%, transparent 70%)`,
-        borderRadius: '50%',
-      }} />
-      
-      <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
-          <Button variant="ghost" size="sm" onClick={goToPrevMonth} style={{ padding: '14px' }}>
-            <ChevronLeft size={26} style={{ color: theme.textColor }} />
-          </Button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
+        <button onClick={goToPrevMonth} style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+          <ChevronLeft size={20} style={{ color: theme.textColor }} />
+        </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <CalendarDays size={22} style={{ color: theme.buttonColor }} />
-            <h3 style={{ color: theme.textColor, fontSize: '18px', fontWeight: 700 }}>
-              {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
-            </h3>
-          </div>
-
-          <Button variant="ghost" size="sm" onClick={goToNextMonth} style={{ padding: '14px' }}>
-            <ChevronRight size={26} style={{ color: theme.textColor }} />
-          </Button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <CalendarDays size={16} style={{ color: theme.buttonColor }} />
+          <span style={{ color: theme.textColor, fontSize: '14px', fontWeight: 600 }}>
+            {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
+          </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px', marginBottom: '14px' }}>
-          {weekDays.map(day => (
-            <div 
-              key={day} 
-              style={{ 
-                textAlign: 'center', 
-                padding: '12px 0',
+        <button onClick={goToNextMonth} style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer' }}>
+          <ChevronRight size={20} style={{ color: theme.textColor }} />
+        </button>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px', marginBottom: '8px' }}>
+        {weekDays.map(day => (
+          <div 
+            key={day} 
+            style={{ textAlign: 'center', fontSize: '11px', fontWeight: 600, color: theme.hintColor, padding: '6px 0' }}
+          >
+            {day}
+          </div>
+        ))}
+      </div>
+      
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '4px' }}>
+        {daysInMonth.map((date, index) => {
+          if (!date) {
+            return <div key={`empty-${index}`} style={{ aspectRatio: '1' }} />;
+          }
+
+          const isToday = isSameDay(date, today);
+          const isSelected = isSameDay(date, selectedDate);
+          const past = isPast(date);
+
+          return (
+            <button
+              key={date.toISOString()}
+              onClick={() => !past && onDateSelect(date)}
+              disabled={past}
+              style={{
+                aspectRatio: '1',
+                borderRadius: '10px',
                 fontSize: '13px',
-                fontWeight: 600,
-                color: theme.hintColor,
+                fontWeight: 500,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: past ? 'default' : 'pointer',
+                background: isSelected 
+                  ? theme.buttonColor 
+                  : isToday 
+                    ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')
+                    : 'transparent',
+                color: isSelected 
+                  ? theme.buttonTextColor 
+                  : past 
+                    ? theme.hintColor 
+                    : theme.textColor,
+                border: 'none',
+                opacity: past ? 0.4 : 1,
               }}
             >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '6px' }}>
-          {daysInMonth.map((date, index) => {
-            if (!date) {
-              return <div key={`empty-${index}`} style={{ aspectRatio: '1' }} />;
-            }
-
-            const isToday = isSameDay(date, today);
-            const isSelected = isSameDay(date, selectedDate);
-            const past = isPast(date);
-
-            return (
-              <button
-                key={date.toISOString()}
-                onClick={() => !past && onDateSelect(date)}
-                disabled={past}
-                style={{
-                  aspectRatio: '1',
-                  borderRadius: '14px',
-                  fontSize: '15px',
-                  fontWeight: 500,
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: past ? 'default' : 'pointer',
-                  background: isSelected 
-                    ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-                    : isToday 
-                      ? (isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)')
-                      : 'transparent',
-                  color: isSelected 
-                    ? theme.buttonTextColor 
-                    : past 
-                      ? theme.hintColor 
-                      : theme.textColor,
-                  border: 'none',
-                  opacity: past ? 0.35 : 1,
-                  boxShadow: isSelected 
-                    ? `0 6px 16px ${theme.buttonColor}40` 
-                    : 'none',
-                  position: 'relative',
-                }}
-              >
-                {date.getDate()}
-              </button>
-            );
-          })}
-        </div>
+              {date.getDate()}
+            </button>
+          );
+        })}
       </div>
     </div>
   );

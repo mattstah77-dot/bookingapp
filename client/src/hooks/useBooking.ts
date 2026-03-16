@@ -32,7 +32,7 @@ export function useBooking() {
     setState(prev => ({
       ...prev,
       selectedSlot: slot,
-      step: 'confirm', // Переходим к подтверждению
+      step: 'confirm',
     }));
   }, []);
 
@@ -40,12 +40,11 @@ export function useBooking() {
     setState(prev => {
       switch (prev.step) {
         case 'calendar':
+          // Возвращаемся к услугам
           return { ...prev, selectedService: null, step: 'services' };
-        case 'time':
-          // Возвращаемся к календарю, но сохраняем дату
-          return { ...prev, step: 'calendar' };
         case 'confirm':
-          return { ...prev, selectedSlot: null, step: 'time' };
+          // Возвращаемся к календарю (слот сбрасывается)
+          return { ...prev, selectedSlot: null, step: 'calendar' };
         default:
           return prev;
       }
