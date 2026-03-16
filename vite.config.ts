@@ -7,6 +7,11 @@ import path from 'path'
 export default defineConfig({
   root: 'client',
   plugins: [react(), tailwindcss()],
+  server: {
+    proxy: {
+      '/api': 'http://localhost:3000',
+    },
+  },
   build: {
     outDir: '../dist',
     emptyOutDir: true,

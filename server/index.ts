@@ -2,6 +2,8 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { createBot, startBot } from '../bot/index.js';
+import apiRouter from './api.js';
+import { db } from './database.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -9,18 +11,21 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = parseInt(process.env.PORT || '3000', 10);
 
-// Нужно для webhook Telegram
+// Middleware
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Статика фронтенда (после npm run build)
-const distPath = path.join(__dirname, '..');
+// API роуты
+app.use('/api', apiRouter);
 
-app.use(express.static(distPath));
-
-// API роуты (будущий бэкенд)
+// Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Статика фронтенда
+const distPath = path.join(__dirname, '..');
+app.use(express.static(distPath));
 
 // Telegram webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -31,20 +36,34 @@ app.post('/webhook', async (req, res) => {
   res.send('OK');
 });
 
-// Проксирование всех запросов на index.html для React Router
+// SPA fallback
 app.get('*', (req, res) => {
   res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // Запуск сервера
-app.listen(PORT, '0.0.0.0', async () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  
-  // Запуск Telegram бота
-  const bot = createBot();
-  if (bot) {
-    await startBot(bot);
-  } else {
-    console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
+async function start() {
+  try {
+    // Инициализация базы данных
+    await db.init();
+    console.log('✅ Database initialized');
+
+    // Запуск сервера
+    app.listen(PORT, '0.0.0.0', async () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+      
+      // Запуск Telegram бота
+      const bot = createBot();
+      if (bot) {
+        await startBot(bot);
+      } else {
+        console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
+      }
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-});
+}
+
+start();

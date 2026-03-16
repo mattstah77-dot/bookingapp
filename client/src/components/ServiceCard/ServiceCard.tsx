@@ -1,26 +1,42 @@
 import type { Service } from '../../types/booking';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { Button } from '../Button/Button';
+import { Clock, Coins } from 'lucide-react';
 
 interface ServiceCardProps {
   service: Service;
   onSelect: (service: Service) => void;
+  index?: number;
 }
 
-export function ServiceCard({ service, onSelect }: ServiceCardProps) {
+export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) {
   const theme = useTelegramTheme();
+  const isDark = (() => {
+    const bg = theme.bgColor;
+    if (!bg || bg === '#ffffff') return false;
+    const hex = bg.replace('#', '');
+    if (hex.length !== 6) return false;
+    return parseInt(hex, 16) < 128000;
+  })();
 
   return (
     <div 
-      className="bg-white rounded-2xl p-5 border border-slate-100 shadow-sm hover:shadow-md transition-all duration-200 hover:border-slate-200 animate-fade-in"
-      style={{ 
-        backgroundColor: theme.bgColor === '#ffffff' ? '#ffffff' : `${theme.bgColor}cc`,
-        borderColor: theme.hintColor + '30',
+      className="service-card"
+      style={{
+        backgroundColor: isDark 
+          ? `${theme.bgColor}f0` 
+          : 'rgba(255, 255, 255, 0.8)',
+        backdropFilter: 'blur(12px)',
+        borderColor: `${theme.hintColor}20`,
+        boxShadow: isDark 
+          ? '0 8px 30px rgba(0,0,0,0.3)' 
+          : '0 8px 30px rgba(0,0,0,0.08)',
+        animationDelay: `${index * 60}ms`,
       }}
     >
       {/* Service Name */}
       <h3 
-        className="text-lg font-semibold mb-1"
+        className="text-xl font-semibold mb-1"
         style={{ color: theme.textColor }}
       >
         {service.name}
@@ -29,7 +45,7 @@ export function ServiceCard({ service, onSelect }: ServiceCardProps) {
       {/* Description */}
       {service.description && (
         <p 
-          className="text-sm mb-4"
+          className="text-sm mb-5"
           style={{ color: theme.hintColor }}
         >
           {service.description}
@@ -37,21 +53,23 @@ export function ServiceCard({ service, onSelect }: ServiceCardProps) {
       )}
       
       {/* Duration & Price */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-1.5">
-          <svg className="w-4 h-4" fill="none" stroke={theme.hintColor} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-sm" style={{ color: theme.hintColor }}>
+      <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center gap-2">
+          <Clock 
+            size={16} 
+            style={{ color: theme.hintColor }} 
+          />
+          <span className="text-sm font-medium" style={{ color: theme.hintColor }}>
             {service.duration} мин
           </span>
         </div>
         
-        <div className="flex items-center gap-1.5">
-          <svg className="w-4 h-4" fill="none" stroke={theme.hintColor} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <span className="text-sm font-medium" style={{ color: theme.buttonColor }}>
+        <div className="flex items-center gap-2">
+          <Coins 
+            size={16} 
+            style={{ color: theme.buttonColor }} 
+          />
+          <span className="text-base font-bold" style={{ color: theme.buttonColor }}>
             {service.price.toLocaleString('ru-RU')} ₽
           </span>
         </div>
@@ -64,10 +82,37 @@ export function ServiceCard({ service, onSelect }: ServiceCardProps) {
           backgroundColor: theme.buttonColor,
           color: theme.buttonTextColor,
           width: '100%',
+          boxShadow: `0 4px 14px ${theme.buttonColor}40`,
         }}
       >
         Выбрать
       </Button>
+
+      <style>{`
+        .service-card {
+          border-radius: 20px;
+          border: 1px solid;
+          padding: 24px;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          opacity: 0;
+          transform: translateY(12px);
+          animation: fadeInUp 0.4s ease forwards;
+        }
+        .service-card:hover {
+          transform: translateY(-4px);
+          box-shadow: 0 12px 40px rgba(0,0,0,0.12) !important;
+        }
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 }

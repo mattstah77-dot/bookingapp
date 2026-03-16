@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { useTelegramTheme } from '../../hooks/useTelegram';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: 'primary' | 'secondary' | 'ghost';
@@ -17,25 +18,45 @@ export function Button({
   style,
   ...props
 }: ButtonProps) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium transition-all duration-200 rounded-full disabled:opacity-50 disabled:cursor-not-allowed';
+  const theme = useTelegramTheme();
   
-  const variants = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 active:bg-blue-800',
-    secondary: 'bg-transparent border border-slate-200 text-slate-700 hover:bg-slate-50 active:bg-slate-100',
-    ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 active:bg-slate-200',
+  const baseStyles = 'inline-flex items-center justify-center font-semibold transition-all duration-200 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]';
+  
+  const sizes = {
+    sm: 'px-4 py-2.5 text-sm h-10',
+    md: 'px-6 py-3.5 text-base h-12',
+    lg: 'px-8 py-4 text-lg h-14',
   };
 
-  const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-5 py-2.5 text-base',
-    lg: 'px-6 py-3 text-lg',
+  const getVariantStyles = () => {
+    switch (variant) {
+      case 'primary':
+        return {
+          backgroundColor: theme.buttonColor,
+          color: theme.buttonTextColor,
+          boxShadow: `0 4px 14px ${theme.buttonColor}40`,
+        };
+      case 'secondary':
+        return {
+          backgroundColor: 'transparent',
+          color: theme.textColor,
+          border: `1px solid ${theme.hintColor}30`,
+        };
+      case 'ghost':
+        return {
+          backgroundColor: 'transparent',
+          color: theme.hintColor,
+        };
+      default:
+        return {};
+    }
   };
 
   return (
     <button
-      className={`${baseStyles} ${variants[variant]} ${sizes[size]} ${className}`}
+      className={`${baseStyles} ${sizes[size]} ${className}`}
       disabled={disabled || loading}
-      style={style}
+      style={{ ...getVariantStyles(), ...style }}
       {...props}
     >
       {loading ? (

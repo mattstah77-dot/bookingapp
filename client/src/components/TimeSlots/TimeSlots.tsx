@@ -14,6 +14,13 @@ export function TimeSlots({
   loading = false 
 }: TimeSlotsProps) {
   const theme = useTelegramTheme();
+  const isDark = (() => {
+    const bg = theme.bgColor;
+    if (!bg || bg === '#ffffff') return false;
+    const hex = bg.replace('#', '');
+    if (hex.length !== 6) return false;
+    return parseInt(hex, 16) < 128000;
+  })();
 
   if (loading) {
     return (
@@ -29,14 +36,14 @@ export function TimeSlots({
           {Array.from({ length: 6 }).map((_, i) => (
             <div
               key={i}
-              className="skeleton h-12 rounded-xl"
+              className="skeleton h-14 rounded-2xl"
             />
           ))}
         </div>
 
         <style>{`
           .skeleton {
-            background: linear-gradient(90deg, ${theme.hintColor}20 25%, ${theme.hintColor}30 50%, ${theme.hintColor}20 75%);
+            background: linear-gradient(90deg, ${theme.hintColor}15 25%, ${theme.hintColor}25 50%, ${theme.hintColor}15 75%);
             background-size: 200% 100%;
             animation: shimmer 1.5s infinite;
           }
@@ -66,20 +73,23 @@ export function TimeSlots({
             <button
               key={slot}
               onClick={() => onSlotSelect(slot)}
-              className={`
-                h-12 rounded-xl text-base font-medium transition-all duration-200
-                ${isSelected ? 'ring-2 ring-offset-2' : 'hover:scale-105'}
-              `}
+              className="time-slot"
               style={{
                 backgroundColor: isSelected 
                   ? theme.buttonColor 
-                  : theme.bgColor === '#ffffff' ? '#f8fafc' : `${theme.bgColor}80`,
+                  : isDark 
+                    ? `${theme.bgColor}f0` 
+                    : 'rgba(255, 255, 255, 0.8)',
                 color: isSelected 
                   ? theme.buttonTextColor 
                   : theme.textColor,
-                borderColor: theme.hintColor + '30',
-                border: '1px solid',
-                boxShadow: isSelected ? `0 0 0 2px ${theme.bgColor}, 0 0 0 4px ${theme.buttonColor}` : undefined,
+                borderColor: isSelected 
+                  ? theme.buttonColor 
+                  : `${theme.hintColor}20`,
+                backdropFilter: 'blur(8px)',
+                boxShadow: isDark 
+                  ? '0 4px 12px rgba(0,0,0,0.2)' 
+                  : '0 4px 12px rgba(0,0,0,0.05)',
               }}
             >
               {slot}
@@ -90,12 +100,30 @@ export function TimeSlots({
 
       {slots.length === 0 && (
         <p 
-          className="text-center py-4"
+          className="text-center py-6 text-base"
           style={{ color: theme.hintColor }}
         >
           Нет доступных слотов на выбранную дату
         </p>
       )}
+
+      <style>{`
+        .time-slot {
+          height: 56px;
+          border-radius: 16px;
+          font-size: 1rem;
+          font-weight: 600;
+          border: 1px solid;
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .time-slot:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(0,0,0,0.15) !important;
+        }
+        .time-slot:active {
+          transform: scale(0.95);
+        }
+      `}</style>
     </div>
   );
 }

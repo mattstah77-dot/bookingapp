@@ -23,7 +23,8 @@ export function useBooking() {
     setState(prev => ({
       ...prev,
       selectedDate: date,
-      step: 'time',
+      // Остаёмся на шаге calendar - слоты покажутся после выбора даты
+      step: 'calendar',
     }));
   }, []);
 
@@ -31,7 +32,7 @@ export function useBooking() {
     setState(prev => ({
       ...prev,
       selectedSlot: slot,
-      step: 'confirm',
+      step: 'confirm', // Переходим к подтверждению
     }));
   }, []);
 
@@ -41,7 +42,8 @@ export function useBooking() {
         case 'calendar':
           return { ...prev, selectedService: null, step: 'services' };
         case 'time':
-          return { ...prev, selectedDate: null, step: 'calendar' };
+          // Возвращаемся к календарю, но сохраняем дату
+          return { ...prev, step: 'calendar' };
         case 'confirm':
           return { ...prev, selectedSlot: null, step: 'time' };
         default:

@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { useBooking } from '../hooks/useBooking';
 import type { Service } from '../types/booking';
@@ -9,45 +9,17 @@ import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
 
-// Моковые данные услуг
-const mockServices: Service[] = [
-  {
-    id: '1',
-    name: 'Стрижка',
-    description: 'Стрижка + укладка',
-    duration: 45,
-    price: 1500,
-  },
-  {
-    id: '2',
-    name: 'Стрижка бороды',
-    description: 'Коррекция бороды',
-    duration: 30,
-    price: 800,
-  },
-  {
-    id: '3',
-    name: 'Комплекс',
-    description: 'Стрижка + борода',
-    duration: 60,
-    price: 2000,
-  },
-  {
-    id: '4',
-    name: 'Бритьё опасной бритвой',
-    description: 'Традиционное бритьё',
-    duration: 40,
-    price: 1200,
-  },
-];
-
-// Моковые слоты (заглушка)
-const mockTimeSlots = [
-  '10:00', '11:00', '12:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00'
-];
+const API_BASE = '/api';
 
 export default function BookingPage() {
   const theme = useTelegramTheme();
+  const [services, setServices] = useState<Service[]>([]);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [bookingSuccess, setBookingSuccess] = useState(false);
+
   const {
     selectedService,
     selectedDate,
@@ -60,6 +32,53 @@ export default function BookingPage() {
     reset,
   } = useBooking();
 
+  // Загрузка услуг при старте
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/services`);
+        const data = await res.json();
+        setServices(data);
+      } catch (err) {
+        console.error('Failed to fetch services:', err);
+        setError('Не удалось загрузить услуги');
+      }
+    };
+    fetchServices();
+  }, []);
+
+  // Загрузка слотов при выборе даты
+  useEffect(() => {
+    const fetchSlots = async () => {
+      if (!selectedDate || !selectedService) {
+        setTimeSlots([]);
+        return;
+      }
+
+      setLoading(true);
+      try {
+        // Форматируем дату в локальном времени
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+        const day = String(selectedDate.getDate()).padStart(2, '0');
+        const dateStr = `${year}-${month}-${day}`;
+        
+        const res = await fetch(
+          `${API_BASE}/slots?date=${dateStr}&duration=${selectedService.duration}`
+        );
+        const data = await res.json();
+        setTimeSlots(data);
+      } catch (err) {
+        console.error('Failed to fetch slots:', err);
+        setError('Не удалось загрузить время');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSlots();
+  }, [selectedDate, selectedService]);
+
   // Форматированная дата
   const formattedDate = useMemo(() => {
     if (!selectedDate) return '';
@@ -69,6 +88,139 @@ export default function BookingPage() {
       month: 'long',
     });
   }, [selectedDate]);
+
+  // Обработка бронирования
+  const handleBooking = useCallback(async () => {
+    if (!selectedService || !selectedDate || !selectedSlot) return;
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      // Форматируем дату в локальном времени
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
+      const res = await fetch(`${API_BASE}/bookings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          serviceId: selectedService.id,
+          serviceName: selectedService.name,
+          date: dateStr,
+          time: selectedSlot,
+          duration: selectedService.duration,
+          price: selectedService.price,
+        }),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Ошибка бронирования');
+      }
+
+      setBookingSuccess(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Ошибка бронирования');
+    } finally {
+      setSubmitting(false);
+    }
+  }, [selectedService, selectedDate, selectedSlot]);
+
+  // Переинициализация при успешном бронировании
+  const handleReset = useCallback(() => {
+    setBookingSuccess(false);
+    setError(null);
+    setTimeSlots([]);
+    reset();
+  }, [reset]);
+
+  // Определение темной темы - ДО ранних return
+  const isDark = (() => {
+    const bg = theme.bgColor;
+    if (!bg || bg === '#ffffff') return false;
+    const hex = bg.replace('#', '');
+    if (hex.length !== 6) return false;
+    return parseInt(hex, 16) < 128000;
+  })();
+
+  // Ошибка
+  if (error && step === 'services') {
+    return (
+      <div 
+        className="min-h-screen p-4 flex items-center justify-center"
+        style={{ backgroundColor: theme.bgColor }}
+      >
+        <div className="text-center">
+          <p style={{ color: theme.buttonColor }}>{error}</p>
+          <Button 
+            onClick={() => window.location.reload()} 
+            style={{ marginTop: 16 }}
+          >
+            Повторить
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // Успешное бронирование
+  if (bookingSuccess) {
+    return (
+      <div 
+        className="min-h-screen p-4"
+        style={{ 
+          backgroundColor: theme.bgColor,
+          paddingTop: 'env(safe-area-inset-top, 20px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 20px)',
+        }}
+      >
+        <div className="max-w-md mx-auto flex flex-col items-center justify-center min-h-[80vh]">
+          <div 
+            className="text-center animate-fade-in"
+            style={{ 
+              backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(12px)',
+              borderRadius: 24,
+              padding: 40,
+              border: `1px solid ${theme.hintColor}20`,
+            }}
+          >
+            <div 
+              className="text-6xl mb-4"
+              style={{ color: theme.buttonColor }}
+            >
+              ✓
+            </div>
+            <h2 
+              className="text-2xl font-semibold mb-2"
+              style={{ color: theme.textColor }}
+            >
+              Запись подтверждена!
+            </h2>
+            <p style={{ color: theme.hintColor }}>
+              Мы ждём вас {formattedDate} в {selectedSlot}
+            </p>
+            <Button
+              onClick={handleReset}
+              style={{ 
+                marginTop: 24,
+                backgroundColor: theme.buttonColor,
+                color: theme.buttonTextColor,
+              }}
+            >
+              Записаться снова
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Debug
+  console.log('DEBUG:', { step, selectedService: !!selectedService, selectedDate: !!selectedDate, selectedSlot });
 
   return (
     <div 
@@ -86,10 +238,23 @@ export default function BookingPage() {
         {/* Навигация назад */}
         {step !== 'services' && <BackButton onClick={goBack} />}
 
+        {/* Сообщение об ошибке */}
+        {error && (
+          <div 
+            className="mb-4 p-3 rounded-xl"
+            style={{ 
+              backgroundColor: `${theme.buttonColor}15`,
+              color: theme.buttonColor,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
         {/* ЭКРАН 1: Список услуг */}
         {step === 'services' && (
           <div className="space-y-3">
-            {mockServices.map((service, index) => (
+            {services.map((service, index) => (
               <div 
                 key={service.id}
                 className="card"
@@ -101,16 +266,24 @@ export default function BookingPage() {
                 />
               </div>
             ))}
+            {services.length === 0 && !error && (
+              <div className="text-center py-8" style={{ color: theme.hintColor }}>
+                Загрузка услуг...
+              </div>
+            )}
           </div>
         )}
 
-        {/* ЭКРАН 2: Календарь */}
+        {/* ЭКРАН 2: Календарь и выбор времени */}
         {step === 'calendar' && selectedService && (
           <div className="space-y-4">
             {/* Выбранная услуга */}
             <div 
-              className="bg-slate-50 rounded-xl p-4 border"
-              style={{ borderColor: theme.hintColor + '20' }}
+              className="rounded-xl p-4 border"
+              style={{ 
+                borderColor: `${theme.hintColor}20`,
+                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+              }}
             >
               <div className="flex justify-between items-center">
                 <span className="font-medium" style={{ color: theme.textColor }}>
@@ -120,6 +293,9 @@ export default function BookingPage() {
                   {selectedService.price} ₽
                 </span>
               </div>
+              <div className="text-sm mt-1" style={{ color: theme.hintColor }}>
+                Длительность: {selectedService.duration} мин
+              </div>
             </div>
 
             {/* Календарь */}
@@ -128,24 +304,61 @@ export default function BookingPage() {
               onDateSelect={selectDate}
             />
 
-            {/* Слоты времени (показываем после выбора даты) */}
+            {/* Слоты времени */}
             {selectedDate && (
               <TimeSlots
-                slots={mockTimeSlots}
+                slots={timeSlots}
                 selectedSlot={selectedSlot}
                 onSlotSelect={selectSlot}
+                loading={loading}
               />
             )}
           </div>
         )}
 
+        {/* ЭКРАН 2б: Выбор времени (когда дата выбрана, но слот нет) */}
+        {step === 'time' && selectedService && selectedDate && !selectedSlot && (
+          <div className="space-y-4">
+            {/* Выбранная услуга */}
+            <div 
+              className="rounded-xl p-4 border"
+              style={{ 
+                borderColor: `${theme.hintColor}20`,
+                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+              }}
+            >
+              <div className="flex justify-between items-center">
+                <span className="font-medium" style={{ color: theme.textColor }}>
+                  {selectedService.name}
+                </span>
+                <span style={{ color: theme.buttonColor }}>
+                  {selectedService.price} ₽
+                </span>
+              </div>
+              <div className="text-sm mt-1" style={{ color: theme.hintColor }}>
+                {formattedDate}
+              </div>
+            </div>
+
+            <TimeSlots
+              slots={timeSlots}
+              selectedSlot={selectedSlot}
+              onSlotSelect={selectSlot}
+              loading={loading}
+            />
+          </div>
+        )}
+
         {/* ЭКРАН 3: Подтверждение */}
-        {step === 'time' && selectedService && selectedDate && selectedSlot && (
+        {step === 'confirm' && selectedService && selectedDate && selectedSlot && (
           <div className="space-y-4 animate-fade-in">
             {/* Карточка подтверждения */}
             <div 
-              className="bg-slate-50 rounded-2xl p-6 border space-y-4"
-              style={{ borderColor: theme.hintColor + '20' }}
+              className="rounded-2xl p-6 border space-y-4"
+              style={{ 
+                borderColor: `${theme.hintColor}20`,
+                backgroundColor: isDark ? `${theme.bgColor}f0` : 'rgba(255,255,255,0.5)',
+              }}
             >
               <h3 
                 className="text-xl font-semibold text-center"
@@ -187,6 +400,8 @@ export default function BookingPage() {
 
             {/* Кнопка подтверждения */}
             <Button
+              onClick={handleBooking}
+              loading={submitting}
               style={{ 
                 backgroundColor: theme.buttonColor,
                 color: theme.buttonTextColor,
@@ -196,9 +411,9 @@ export default function BookingPage() {
               Записаться
             </Button>
 
-            {/* Кнопка сброса (для тестирования) */}
+            {/* Кнопка сброса */}
             <button
-              onClick={reset}
+              onClick={handleReset}
               className="block w-full text-center text-sm py-2"
               style={{ color: theme.hintColor }}
             >
@@ -208,7 +423,7 @@ export default function BookingPage() {
         )}
       </div>
 
-      {/* Глобальные стили для анимаций */}
+      {/* Стили */}
       <style>{`
         .animate-fade-in {
           animation: fadeIn 0.3s ease-out forwards;

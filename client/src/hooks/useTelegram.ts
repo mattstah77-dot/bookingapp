@@ -1,19 +1,38 @@
-import { useMemo } from 'react';
+import { useMemo, useEffect, useState } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
 export function useTelegramTheme(): TelegramTheme {
-  return useMemo(() => {
-    const theme = window.Telegram?.WebApp?.themeParams;
+  const [theme, setTheme] = useState<TelegramTheme>(() => {
+    const tgTheme = window.Telegram?.WebApp?.themeParams;
     
     return {
-      bgColor: theme?.bg_color || '#ffffff',
-      textColor: theme?.text_color || '#0f172a',
-      buttonColor: theme?.button_color || '#2563eb',
-      buttonTextColor: theme?.button_text_color || '#ffffff',
-      hintColor: theme?.hint_color || '#64748b',
-      linkColor: theme?.link_color || '#3b82f6',
+      bgColor: tgTheme?.bg_color || '#ffffff',
+      textColor: tgTheme?.text_color || '#0f172a',
+      buttonColor: tgTheme?.button_color || '#2563eb',
+      buttonTextColor: tgTheme?.button_text_color || '#ffffff',
+      hintColor: tgTheme?.hint_color || '#64748b',
+      linkColor: tgTheme?.link_color || '#3b82f6',
     };
+  });
+
+  useEffect(() => {
+    const tg = window.Telegram?.WebApp;
+    if (tg) {
+      tg.onEvent('themeChanged', () => {
+        const tgTheme = tg.themeParams;
+        setTheme({
+          bgColor: tgTheme?.bg_color || '#ffffff',
+          textColor: tgTheme?.text_color || '#0f172a',
+          buttonColor: tgTheme?.button_color || '#2563eb',
+          buttonTextColor: tgTheme?.button_text_color || '#ffffff',
+          hintColor: tgTheme?.hint_color || '#64748b',
+          linkColor: tgTheme?.link_color || '#3b82f6',
+        });
+      });
+    }
   }, []);
+
+  return theme;
 }
 
 export function getGreeting(): string {
