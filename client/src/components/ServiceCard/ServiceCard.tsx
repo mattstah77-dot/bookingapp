@@ -1,6 +1,5 @@
 import type { Service } from '../../types/booking';
 import { useTelegramTheme } from '../../hooks/useTelegram';
-import { Coins } from 'lucide-react';
 
 interface ServiceCardProps {
   service: Service;

@@ -1,6 +1,5 @@
 import { useState, useMemo } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
-import { Button } from '../Button/Button';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
 interface CalendarProps {
