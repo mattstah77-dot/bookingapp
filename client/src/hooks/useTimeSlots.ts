@@ -7,11 +7,12 @@ import {
   type TimeSlot 
 } from '../utils/timeSlots';
 
+const API_BASE = '/api';
+
 interface UseTimeSlotsOptions {
   selectedDate: Date | null;
   serviceDuration: number;
   scheduleConfig?: ScheduleConfig;
-  bookedSlots?: string[]; // Занятые слоты с бэкенда
 }
 
 interface UseTimeSlotsResult {
@@ -23,14 +24,44 @@ interface UseTimeSlotsResult {
 /**
  * Хук для управления временными слотами
  * Автоматически генерирует, фильтрует и обновляет слоты
+ * Загружает занятые слоты с бэкенда
  */
 export function useTimeSlots({
   selectedDate,
   serviceDuration,
   scheduleConfig = DEFAULT_SCHEDULE,
-  bookedSlots = [],
 }: UseTimeSlotsOptions): UseTimeSlotsResult {
   const [loading, setLoading] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState<string[]>([]);
+
+  // Загрузка занятых слотов с бэкенда при изменении даты
+  useEffect(() => {
+    if (!selectedDate) {
+      setBookedSlots([]);
+      return;
+    }
+
+    const fetchBookedSlots = async () => {
+      const year = selectedDate.getFullYear();
+      const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+      const day = String(selectedDate.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+
+      try {
+        const res = await fetch(
+          `${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`
+        );
+        const data = await res.json();
+        // data - это массив занятых времён
+        setBookedSlots(data);
+      } catch (err) {
+        console.error('Failed to fetch booked slots:', err);
+        setBookedSlots([]);
+      }
+    };
+
+    fetchBookedSlots();
+  }, [selectedDate, serviceDuration]);
 
   // Генерация слотов с учётом всех параметров
   const allSlots = useMemo(() => {
@@ -49,23 +80,35 @@ export function useTimeSlots({
     return getAvailableSlots(allSlots, selectedDate);
   }, [allSlots, selectedDate]);
 
-  // Имитация загрузки (для UI feedback)
+  // Loading состояние
   useEffect(() => {
     if (selectedDate && serviceDuration) {
       setLoading(true);
-      // Имитация асинхронной загрузки
       const timer = setTimeout(() => {
         setLoading(false);
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [selectedDate, serviceDuration]);
+  }, [selectedDate, serviceDuration, bookedSlots]);
 
-  // Ручной refetch (если нужно)
+  // Ручной refetch
   const refetch = useCallback(() => {
+    if (!selectedDate) return;
+    
     setLoading(true);
-    setTimeout(() => setLoading(false), 300);
-  }, []);
+    const year = selectedDate.getFullYear();
+    const month = String(selectedDate.getMonth() + 1).padStart(2, '0');
+    const day = String(selectedDate.getDate()).padStart(2, '0');
+    const dateStr = `${year}-${month}-${day}`;
+
+    fetch(`${API_BASE}/slots?date=${dateStr}&duration=${serviceDuration}`)
+      .then(res => res.json())
+      .then(data => {
+        setBookedSlots(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, [selectedDate, serviceDuration]);
 
   return {
     slots,
