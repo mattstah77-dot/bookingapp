@@ -12,6 +12,9 @@ export interface Service {
   duration: number; // минуты
   price: number;
   category?: string;
+  photos?: string[]; // base64 массив
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface Booking {
@@ -53,10 +56,10 @@ export interface Database {
 
 const DEFAULT_DB: Database = {
   services: [
-    { id: '1', name: 'Стрижка', description: 'Стрижка + укладка', duration: 45, price: 1500 },
-    { id: '2', name: 'Стрижка бороды', description: 'Коррекция бороды', duration: 30, price: 800 },
-    { id: '3', name: 'Комплекс', description: 'Стрижка + борода', duration: 60, price: 2000 },
-    { id: '4', name: 'Бритьё опасной бритвой', description: 'Традиционное бритьё', duration: 40, price: 1200 },
+    { id: '1', name: 'Стрижка', description: 'Стрижка + укладка', duration: 45, price: 1500, sortOrder: 1, isActive: true },
+    { id: '2', name: 'Стрижка бороды', description: 'Коррекция бороды', duration: 30, price: 800, sortOrder: 2, isActive: true },
+    { id: '3', name: 'Комплекс', description: 'Стрижка + борода', duration: 60, price: 2000, sortOrder: 3, isActive: true },
+    { id: '4', name: 'Бритьё опасной бритвой', description: 'Традиционное бритьё', duration: 40, price: 1200, sortOrder: 4, isActive: true },
   ],
   bookings: [],
   schedule: [
@@ -111,12 +114,62 @@ class AsyncDatabase {
   }
 
   // Services
-  async getServices(): Promise<Service[]> {
-    return [...this.db.services];
+  async getServices(includeInactive = false): Promise<Service[]> {
+    let services = [...this.db.services];
+    if (!includeInactive) {
+      services = services.filter(s => s.isActive);
+    }
+    // Сортировка по sortOrder
+    services.sort((a, b) => a.sortOrder - b.sortOrder);
+    return services;
   }
 
   async getServiceById(id: string): Promise<Service | undefined> {
     return this.db.services.find(s => s.id === id);
+  }
+
+  async createService(service: Omit<Service, 'id' | 'sortOrder' | 'isActive'>): Promise<Service> {
+    const maxOrder = Math.max(...this.db.services.map(s => s.sortOrder), 0);
+    const newService: Service = {
+      ...service,
+      id: crypto.randomUUID(),
+      sortOrder: maxOrder + 1,
+      isActive: true,
+      photos: service.photos || [],
+    };
+    this.db.services.push(newService);
+    this.scheduleSave();
+    return newService;
+  }
+
+  async updateService(id: string, updates: Partial<Service>): Promise<Service | null> {
+    const service = this.db.services.find(s => s.id === id);
+    if (service) {
+      Object.assign(service, updates);
+      this.scheduleSave();
+      return service;
+    }
+    return null;
+  }
+
+  async deleteService(id: string): Promise<boolean> {
+    const index = this.db.services.findIndex(s => s.id === id);
+    if (index !== -1) {
+      this.db.services.splice(index, 1);
+      this.scheduleSave();
+      return true;
+    }
+    return false;
+  }
+
+  async reorderServices(orderedIds: string[]): Promise<void> {
+    orderedIds.forEach((id, index) => {
+      const service = this.db.services.find(s => s.id === id);
+      if (service) {
+        service.sortOrder = index + 1;
+      }
+    });
+    this.scheduleSave();
   }
 
   // Bookings

@@ -28,13 +28,121 @@ function requireAdmin(req: any, res: any, next: any) {
   return res.status(403).json({ error: 'Access denied' });
 }
 
-// Получить все услуги
+// Получить все услуги (только активные для клиентов)
 router.get('/services', async (req, res) => {
   try {
-    const services = await db.getServices();
+    const services = await db.getServices(false);
     res.json(services);
   } catch (error) {
     res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+// ========== ADMIN SERVICES ROUTES ==========
+
+// Получить все услуги (включая неактивные)
+router.get('/admin/services', requireAdmin, async (req, res) => {
+  try {
+    const services = await db.getServices(true);
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
+// Получить одну услугу
+router.get('/admin/services/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const service = await db.getServiceById(id);
+    
+    if (service) {
+      res.json(service);
+    } else {
+      res.status(404).json({ error: 'Service not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch service' });
+  }
+});
+
+// Создать услугу
+router.post('/admin/services', requireAdmin, async (req, res) => {
+  try {
+    const { name, description, duration, price, photos } = req.body;
+    
+    if (!name || !duration || !price) {
+      return res.status(400).json({ error: 'name, duration and price are required' });
+    }
+    
+    const service = await db.createService({
+      name,
+      description: description || '',
+      duration,
+      price,
+      photos: photos || [],
+    });
+    
+    res.status(201).json(service);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to create service' });
+  }
+});
+
+// Обновить услугу
+router.put('/admin/services/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { name, description, duration, price, photos, isActive } = req.body;
+    
+    const service = await db.updateService(id, {
+      ...(name && { name }),
+      ...(description !== undefined && { description }),
+      ...(duration && { duration }),
+      ...(price && { price }),
+      ...(photos && { photos }),
+      ...(isActive !== undefined && { isActive }),
+    });
+    
+    if (service) {
+      res.json(service);
+    } else {
+      res.status(404).json({ error: 'Service not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update service' });
+  }
+});
+
+// Удалить услугу
+router.delete('/admin/services/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const deleted = await db.deleteService(id);
+    
+    if (deleted) {
+      res.json({ success: true });
+    } else {
+      res.status(404).json({ error: 'Service not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete service' });
+  }
+});
+
+// Изменить порядок услуг
+router.patch('/admin/services/reorder', requireAdmin, async (req, res) => {
+  try {
+    const { orderedIds } = req.body;
+    
+    if (!Array.isArray(orderedIds)) {
+      return res.status(400).json({ error: 'orderedIds must be an array' });
+    }
+    
+    await db.reorderServices(orderedIds);
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to reorder services' });
   }
 });
 

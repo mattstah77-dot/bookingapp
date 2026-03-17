@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
-  CalendarDays, Users
+  CalendarDays, Users, ClipboardList, Scissors
 } from 'lucide-react';
 
 interface Booking {
@@ -58,6 +58,7 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [activeTab, setActiveTab] = useState<'bookings' | 'services'>('bookings');
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -293,7 +294,7 @@ export default function AdminPage() {
     >
       <div style={{ maxWidth: '440px', margin: '0 auto' }}>
         {/* Заголовок */}
-        <div style={{ marginBottom: '32px' }}>
+        <div style={{ marginBottom: '24px' }}>
           <div style={{
             width: '48px',
             height: '4px',
@@ -304,12 +305,63 @@ export default function AdminPage() {
           <h1 style={{ color: theme.textColor, fontSize: '28px', fontWeight: 800 }}>
             Админ-панель
           </h1>
-          <p style={{ color: theme.hintColor, fontSize: '15px', marginTop: '6px' }}>
-            Управление записями
-          </p>
         </div>
 
-        {/* Статистика */}
+        {/* Табы */}
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
+          <button
+            onClick={() => setActiveTab('bookings')}
+            style={{ 
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '14px',
+              borderRadius: '14px',
+              fontSize: '14px',
+              fontWeight: 600,
+              transition: 'all 0.3s ease',
+              background: activeTab === 'bookings' 
+                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                : 'transparent',
+              color: activeTab === 'bookings' 
+                ? theme.buttonTextColor 
+                : theme.hintColor,
+              border: `1px solid ${activeTab === 'bookings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+              cursor: 'pointer',
+            }}
+          >
+            <ClipboardList size={18} />
+            Записи
+          </button>
+          <button
+            onClick={() => window.location.href = '/admin/services'}
+            style={{ 
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '14px',
+              borderRadius: '14px',
+              fontSize: '14px',
+              fontWeight: 600,
+              transition: 'all 0.3s ease',
+              background: 'transparent',
+              color: theme.hintColor,
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+              cursor: 'pointer',
+            }}
+          >
+            <Scissors size={18} />
+            Услуги
+          </button>
+        </div>
+
+        {activeTab === 'bookings' && (
+          <>
+            {/* Статистика */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginBottom: '28px' }}>
           <div 
             className="glass-card"
@@ -653,6 +705,8 @@ export default function AdminPage() {
               </div>
             ))}
           </div>
+        )}
+          </>
         )}
       </div>
 

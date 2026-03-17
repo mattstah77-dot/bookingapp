@@ -5,6 +5,9 @@ export interface Service {
   duration: number; // минуты
   price: number;
   category?: string;
+  photos?: string[]; // base64
+  sortOrder: number;
+  isActive: boolean;
 }
 
 export interface TimeSlot {
