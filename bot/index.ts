@@ -144,11 +144,6 @@ async function getBookingsListPage(page: number) {
   return { text, keyboard, total };
 }
 
-// Формирование клавиатуры (для обратной совместимости)
-function getBookingsKeyboard(page: number, total: number, messageId?: number) {
-  return getBookingsListPage(page).then(r => r.keyboard);
-}
-
 export function createBot() {
   if (!BOT_TOKEN) {
     console.warn('⚠️ BOT_TOKEN not set, returning null');
@@ -238,7 +233,7 @@ export function createBot() {
     // Первый показ списка записей
     if (callbackData === 'bookings_list') {
       const { text, keyboard } = await getBookingsListPage(0);
-      await ctx.editMessageText(text, { reply_markup: keyboard });
+      await ctx.editMessageText(text, { reply_markup: { inline_keyboard: keyboard } });
       return;
     }
     
@@ -247,7 +242,7 @@ export function createBot() {
       const page = parseInt(callbackData.replace('bookings_page_', ''));
       const { text, keyboard } = await getBookingsListPage(page);
       
-      await ctx.editMessageText(text, { reply_markup: keyboard });
+      await ctx.editMessageText(text, { reply_markup: { inline_keyboard: keyboard } });
       return;
     }
     
@@ -288,11 +283,8 @@ export function createBot() {
       await db.deleteBooking(bookingId);
       
       // Возвращаемся к списку
-      const page = 0;
-      const { text, total } = await getBookingsListPage(page);
-      const keyboard = getBookingsKeyboard(page, total);
-      
-      await ctx.editMessageText(text + '\n🗑 Запись удалена', keyboard);
+      const { text, keyboard } = await getBookingsListPage(0);
+      await ctx.editMessageText(text + '\n🗑 Запись удалена', { reply_markup: { inline_keyboard: keyboard } });
       return;
     }
   });
