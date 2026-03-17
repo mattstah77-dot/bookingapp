@@ -10,9 +10,13 @@ import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
-import { Check, ArrowRight, RotateCcw } from 'lucide-react';
+import { Check, ArrowRight, RotateCcw, Settings } from 'lucide-react';
 
 const API_BASE = '/api';
+
+function getTelegramId(): number | undefined {
+  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+}
 
 export default function BookingPage() {
   const theme = useTelegramTheme();
@@ -21,6 +25,7 @@ export default function BookingPage() {
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [selectedServiceForModal, setSelectedServiceForModal] = useState<Service | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -55,6 +60,24 @@ export default function BookingPage() {
       }
     };
     fetchServices();
+  }, []);
+
+  // Проверка админа
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const telegramId = getTelegramId();
+      if (!telegramId) return;
+      
+      try {
+        const res = await fetch(`${API_BASE}/admin/check?telegramId=${telegramId}`);
+        const data = await res.json();
+        setIsAdmin(data.isAdmin || false);
+      } catch (err) {
+        console.error('Failed to check admin:', err);
+      }
+    };
+    
+    checkAdmin();
   }, []);
 
   // Умная генерация слотов на клиенте
@@ -495,6 +518,40 @@ export default function BookingPage() {
           }}
           onClose={() => setSelectedServiceForModal(null)}
         />
+      )}
+
+      {/* Кнопка админ-панели */}
+      {isAdmin && (
+        <div style={{ 
+          position: 'fixed', 
+          bottom: '20px', 
+          right: '20px',
+          zIndex: 100,
+        }}>
+          <a
+            href="/admin"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              padding: '10px 14px',
+              borderRadius: '16px',
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+              backdropFilter: 'blur(16px)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.1)',
+              color: theme.hintColor,
+              fontSize: '12px',
+              fontWeight: 500,
+              textDecoration: 'none',
+            }}
+          >
+            <Settings size={14} />
+            Админ
+          </a>
+        </div>
       )}
 
       <style>{`

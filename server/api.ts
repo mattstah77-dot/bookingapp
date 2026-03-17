@@ -188,6 +188,24 @@ router.delete('/bookings/:id', async (req, res) => {
 
 // ========== ADMIN ROUTES ==========
 
+// Проверить является ли пользователь админом
+router.get('/admin/check', async (req, res) => {
+  try {
+    const { telegramId } = req.query;
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    const id = parseInt(telegramId as string);
+    const isAdminUser = ADMIN_IDS.includes(id);
+    
+    res.json({ isAdmin: isAdminUser });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to check admin' });
+  }
+});
+
 // Получить все бронирования с фильтрами
 router.get('/admin/bookings', requireAdmin, async (req, res) => {
   try {
