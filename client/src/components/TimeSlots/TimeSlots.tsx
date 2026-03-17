@@ -127,6 +127,7 @@ export function TimeSlots({
                 key={slot.time}
                 onClick={() => isAvailable && onSlotSelect(slot.time)}
                 disabled={!isAvailable}
+                className={`time-slot ${isSelected ? 'time-slot-selected' : ''} ${!isAvailable ? 'time-slot-disabled' : ''}`}
                 style={{
                   minWidth: '80px',
                   height: '48px',
@@ -134,7 +135,6 @@ export function TimeSlots({
                   fontSize: '15px',
                   fontWeight: 600,
                   padding: '0 16px',
-                  transition: 'all 0.15s ease',
                   background: isSelected 
                     ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
                     : isAvailable
@@ -157,6 +157,7 @@ export function TimeSlots({
                   cursor: isAvailable ? 'pointer' : 'not-allowed',
                   flexShrink: 0,
                   opacity: isAvailable ? 1 : 0.5,
+                  touchAction: 'manipulation',
                 }}
               >
                 {slot.time}

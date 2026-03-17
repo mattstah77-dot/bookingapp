@@ -24,7 +24,7 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
   return (
     <div 
       onClick={() => onSelect(service)}
-      className="glass-card"
+      className="glass-card card-press card-hover"
       style={{
         background: isDark 
           ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 

@@ -198,3 +198,253 @@ button {
   scroll-behavior: smooth;
   -webkit-overflow-scrolling: touch;
 }
+
+/* ============================================
+   МИКРО-ВЗАИМОДЕЙСТВИЯ
+   ============================================ */
+
+/* Кнопки - нажатие */
+.btn-press {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.15s ease;
+}
+
+.btn-press:active {
+  transform: scale(0.96);
+}
+
+.btn-press:hover {
+  opacity: 0.9;
+}
+
+/* Кнопки - основной стиль */
+.btn-primary {
+  background: linear-gradient(135deg, var(--button-color, #6366f1), var(--button-color-dark, #4f46e5));
+  color: white;
+  border: none;
+  border-radius: 14px;
+  padding: 14px 24px;
+  font-weight: 600;
+  font-size: 15px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.btn-primary:active {
+  transform: scale(0.96);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.4);
+}
+
+/* Карточки - нажатие */
+.card-press {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.2s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.2s ease;
+}
+
+.card-press:active {
+  transform: scale(0.98);
+}
+
+/* Карточки - hover (ПК) */
+.card-hover {
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+/* Drag & Drop - перетаскиваемая карточка */
+.dragging {
+  opacity: 0.9;
+  transform: scale(1.02);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25) !important;
+  z-index: 1000;
+}
+
+/* Drag & Drop - место для сброса */
+.drag-over {
+  border: 2px dashed var(--button-color, #6366f1) !important;
+  background: rgba(99, 102, 241, 0.05) !important;
+}
+
+/* Слоты времени */
+.time-slot {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.time-slot:active:not(.time-slot-disabled) {
+  transform: scale(0.95);
+}
+
+.time-slot:not(.time-slot-disabled):hover {
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.time-slot-selected {
+  background: linear-gradient(135deg, var(--button-color, #6366f1), var(--button-color-dark, #4f46e5)) !important;
+  color: white !important;
+  border-color: transparent !important;
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.4);
+}
+
+.time-slot-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Календарь - дни */
+.calendar-day {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.calendar-day:active:not(.calendar-day-disabled):not(.calendar-day-selected) {
+  transform: scale(0.9);
+}
+
+.calendar-day:not(.calendar-day-disabled):not(.calendar-day-selected):hover {
+  background: rgba(99, 102, 241, 0.1);
+}
+
+.calendar-day-today {
+  position: relative;
+}
+
+.calendar-day-today::after {
+  content: '';
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 4px;
+  background: var(--button-color, #6366f1);
+  border-radius: 50%;
+}
+
+/* Поля ввода */
+.input-focus {
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.input-focus:focus {
+  outline: none;
+  border-color: var(--button-color, #6366f1);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+/* Ripple эффект */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  transition: width 0.4s ease, height 0.4s ease, opacity 0.4s ease;
+  opacity: 0;
+}
+
+.ripple:active::after {
+  width: 200%;
+  height: 200%;
+  opacity: 1;
+  transition: width 0s, height 0s, opacity 0s;
+}
+
+/* Индикатор загрузки */
+.loading-pulse {
+  animation: loadingPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes loadingPulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Успешное действие - зеленая подсветка */
+.success-flash {
+  animation: successFlash 0.5s ease;
+}
+
+@keyframes successFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+/* Ошибка - красная подсветка */
+.error-flash {
+  animation: errorFlash 0.5s ease;
+}
+
+@keyframes errorFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+  }
+}
+
+/* Свайп-действие (для будущего) */
+.swipe-action {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Акцентный блеск при появлении */
+.shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.shine::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.15),
+    transparent
+  );
+  animation: shine 3s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%, 100% {
+    left: -100%;
+  }
+  50% {
+    left: 100%;
+  }
+}

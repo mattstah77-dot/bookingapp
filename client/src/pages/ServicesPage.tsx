@@ -9,6 +9,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   type DragEndEvent,
@@ -77,7 +78,7 @@ function SortableServiceCard({
   return (
     <div ref={setNodeRef} style={style}>
       <div
-        className="glass-card"
+        className={`glass-card ${isDragging ? 'dragging' : ''}`}
         style={{
           background: service.isActive 
             ? (isDark 
@@ -238,6 +239,12 @@ export default function ServicesPage() {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {

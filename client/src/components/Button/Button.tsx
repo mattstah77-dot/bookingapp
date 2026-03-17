@@ -67,7 +67,7 @@ export function Button({
 
   return (
     <button
-      className={sizes[size]}
+      className={`${sizes[size]} btn-press`}
       disabled={disabled || loading}
       style={{
         ...getVariantStyles(),
@@ -82,6 +82,7 @@ export function Button({
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center',
+        touchAction: 'manipulation',
       }}
       {...props}
     >

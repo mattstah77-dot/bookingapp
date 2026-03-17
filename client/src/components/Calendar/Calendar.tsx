@@ -127,6 +127,7 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
               key={date.toISOString()}
               onClick={() => !past && onDateSelect(date)}
               disabled={past}
+              className={`calendar-day ${past ? 'calendar-day-disabled' : ''} ${isSelected ? 'calendar-day-selected' : ''} ${isToday ? 'calendar-day-today' : ''}`}
               style={{
                 aspectRatio: '1',
                 borderRadius: '10px',
@@ -148,6 +149,7 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
                     : theme.textColor,
                 border: 'none',
                 opacity: past ? 0.4 : 1,
+                touchAction: 'manipulation',
               }}
             >
               {date.getDate()}
