@@ -29,10 +29,16 @@ function formatDate(dateStr: string): string {
 
 export function createBot() {
   if (!BOT_TOKEN) {
+    console.warn('⚠️ BOT_TOKEN not set, returning null');
     return null;
   }
 
   const bot = new Bot(BOT_TOKEN);
+
+  // Добавим обработку ошибок
+  bot.catch((err) => {
+    console.error('❌ Bot error:', err);
+  });
 
   // Команда /start
   bot.command('start', async (ctx: Context) => {
@@ -137,6 +143,15 @@ export async function notifyAdmin(bot: Bot, message: string) {
 export async function startBot(bot: Bot) {
   console.log('🤖 Telegram bot starting...');
   console.log('📝 WEBHOOK_URL:', WEBHOOK_URL);
+  
+  // Инициализация бота (обязательно!)
+  try {
+    await bot.init();
+    console.log('✅ Bot initialized');
+  } catch (err) {
+    console.error('❌ Failed to init bot:', err);
+    return;
+  }
   
   // Используем webhook на production
   if (WEBHOOK_URL) {
