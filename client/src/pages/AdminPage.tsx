@@ -336,7 +336,10 @@ export default function AdminPage() {
             Записи
           </button>
           <button
-            onClick={() => window.location.href = '/admin/services'}
+            onClick={() => {
+              const baseUrl = window.location.origin;
+              window.location.href = `${baseUrl}/admin/services`;
+            }}
             style={{ 
               flex: 1,
               display: 'flex',
