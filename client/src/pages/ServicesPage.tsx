@@ -3,7 +3,7 @@ import { useTelegramTheme } from '../hooks/useTelegram';
 import type { Service } from '../types/booking';
 import { ServiceEditModal } from '../components/ServiceEditModal/ServiceEditModal';
 import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
-import { Plus, GripVertical, Eye, EyeOff, Edit2, Trash2 } from 'lucide-react';
+import { Plus, GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -153,8 +153,17 @@ export default function ServicesPage() {
   }
 
   return (
-    <div style={{ padding: '16px', paddingBottom: '100px' }}>
-      {/* Заголовок */}
+    <div 
+      style={{ 
+        minHeight: '100vh', 
+        padding: '16px',
+        backgroundColor: theme.bgColor,
+        paddingTop: 'env(safe-area-inset-top, 16px)',
+        paddingBottom: 'env(safe-area-inset-bottom, 100px)',
+      }}
+    >
+      <div style={{ maxWidth: '440px', margin: '0 auto' }}>
+        {/* Заголовок */}
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -192,51 +201,43 @@ export default function ServicesPage() {
 
       {/* Список услуг */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-        {services.map((service, index) => (
+        {services.map((service) => (
           <div
             key={service.id}
             draggable
             onDragStart={(e) => handleDragStart(e, service.id)}
             onDragOver={handleDragOver}
             onDrop={(e) => handleDrop(e, service.id)}
+            onClick={() => setEditService(service)}
+            className="glass-card"
             style={{
               display: 'flex',
               alignItems: 'center',
               gap: '12px',
-              padding: '14px',
-              borderRadius: '16px',
+              padding: '18px',
+              borderRadius: '20px',
               background: service.isActive 
-                ? (isDark ? 'rgba(35,35,35,0.9)' : 'rgba(255,255,255,0.9)')
+                ? (isDark 
+                    ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))')
                 : (isDark ? 'rgba(35,35,35,0.5)' : 'rgba(255,255,255,0.5)'),
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+              backdropFilter: 'blur(24px)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)'}`,
               opacity: service.isActive ? 1 : 0.6,
               cursor: 'grab',
-              transition: 'transform 0.2s, box-shadow 0.2s',
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: isDark ? '0 6px 24px rgba(0,0,0,0.45)' : '0 6px 24px rgba(0,0,0,0.08)',
             }}
           >
             {/* Drag handle */}
             <GripVertical size={20} style={{ color: theme.hintColor, flexShrink: 0 }} />
 
-            {/* Номер */}
-            <span style={{ 
-              width: '24px', 
-              textAlign: 'center',
-              color: theme.hintColor, 
-              fontSize: '14px',
-              fontWeight: 600 
-            }}>
-              {index + 1}
-            </span>
-
             {/* Инфо */}
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ 
-                fontWeight: 600, 
+                fontWeight: 700, 
                 color: theme.textColor,
-                fontSize: '15px',
-                whiteSpace: 'nowrap',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
+                fontSize: '16px',
               }}>
                 {service.name}
               </div>
@@ -245,16 +246,17 @@ export default function ServicesPage() {
                 fontSize: '13px',
                 display: 'flex',
                 gap: '12px',
+                marginTop: '4px',
               }}>
                 <span>{service.duration} мин</span>
-                <span style={{ fontWeight: 600, color: theme.buttonColor }}>
+                <span style={{ fontWeight: 700, color: theme.buttonColor, fontSize: '18px' }}>
                   {service.price} ₽
                 </span>
               </div>
             </div>
 
             {/* Действия */}
-            <div style={{ display: 'flex', gap: '4px' }}>
+            <div style={{ display: 'flex', gap: '4px' }} onClick={e => e.stopPropagation()}>
               <button
                 onClick={() => toggleVisibility(service)}
                 style={{
@@ -269,18 +271,6 @@ export default function ServicesPage() {
                   ? <Eye size={18} style={{ color: theme.buttonColor }} />
                   : <EyeOff size={18} style={{ color: theme.hintColor }} />
                 }
-              </button>
-              <button
-                onClick={() => setEditService(service)}
-                style={{
-                  padding: '8px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <Edit2 size={18} style={{ color: theme.hintColor }} />
               </button>
               <button
                 onClick={() => setDeleteConfirm(service)}
@@ -331,6 +321,7 @@ export default function ServicesPage() {
           onCancel={() => setDeleteConfirm(null)}
         />
       )}
+      </div>
     </div>
   );
 }
