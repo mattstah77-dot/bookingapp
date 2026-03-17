@@ -186,6 +186,25 @@ router.delete('/bookings/:id', async (req, res) => {
   }
 });
 
+// ========== SCHEDULE ROUTES ==========
+
+// Получить расписание на день недели
+router.get('/schedule', async (req, res) => {
+  try {
+    const { dayOfWeek } = req.query;
+    const schedule = await db.getSchedule();
+    
+    if (dayOfWeek !== undefined) {
+      const daySchedule = schedule.find(s => s.dayOfWeek === parseInt(dayOfWeek as string));
+      return res.json(daySchedule || null);
+    }
+    
+    res.json(schedule);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch schedule' });
+  }
+});
+
 // ========== ADMIN ROUTES ==========
 
 // Проверить является ли пользователь админом

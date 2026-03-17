@@ -9,6 +9,15 @@ import {
 
 const API_BASE = '/api';
 
+// Тип для расписания с бэкенда
+interface BackendSchedule {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  breakStart?: string;
+  breakEnd?: string;
+}
+
 interface UseTimeSlotsOptions {
   selectedDate: Date | null;
   serviceDuration: number;
@@ -32,6 +41,35 @@ export function useTimeSlots({
 }: UseTimeSlotsOptions): UseTimeSlotsResult {
   const [loading, setLoading] = useState(false);
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [config, setConfig] = useState<ScheduleConfig>(scheduleConfig);
+
+  // Загрузка расписания с бэкенда
+  useEffect(() => {
+    const fetchSchedule = async () => {
+      if (!selectedDate) return;
+      
+      const dayOfWeek = selectedDate.getDay();
+      
+      try {
+        const res = await fetch(`${API_BASE}/schedule?dayOfWeek=${dayOfWeek}`);
+        const schedule: BackendSchedule | null = await res.json();
+        
+        if (schedule) {
+          setConfig(prev => ({
+            ...prev,
+            workDayStart: schedule.startTime,
+            workDayEnd: schedule.endTime,
+            breakStart: schedule.breakStart,
+            breakEnd: schedule.breakEnd,
+          }));
+        }
+      } catch (err) {
+        console.error('Failed to fetch schedule:', err);
+      }
+    };
+
+    fetchSchedule();
+  }, [selectedDate]);
 
   // Загрузка бронирований с бэкенда при изменении даты
   useEffect(() => {
@@ -76,12 +114,12 @@ export function useTimeSlots({
     if (!selectedDate) return [];
     
     return generateTimeSlots({
-      config: scheduleConfig,
+      config,
       serviceDuration,
       bookings,
       selectedDate,
     });
-  }, [selectedDate, serviceDuration, scheduleConfig, bookings]);
+  }, [selectedDate, serviceDuration, config, bookings]);
 
   // Loading состояние
   useEffect(() => {

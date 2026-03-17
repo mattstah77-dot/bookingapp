@@ -13,6 +13,8 @@ export interface ScheduleConfig {
   workDayEnd: string;     // "19:00" - конец рабочего дня
   slotStep: number;       // 15 - шаг сетки в минутах
   bufferBetweenClients: number; // 10 - буфер между клиентами
+  breakStart?: string;    // "14:00" - начало перерыва
+  breakEnd?: string;      // "15:00" - конец перерыва
 }
 
 /**
@@ -51,6 +53,8 @@ export const DEFAULT_SCHEDULE: ScheduleConfig = {
   workDayEnd: '20:00',
   slotStep: 15,           // 15 минут шаг сетки
   bufferBetweenClients: 15, // 15 минут буфер (как в database.ts)
+  breakStart: '14:00',    // обед
+  breakEnd: '15:00',
 };
 
 // ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
@@ -125,6 +129,26 @@ function hasIntersection(
 }
 
 /**
+ * ЭТАП 8 — ПРОВЕРКА ПЕРЕРЫВА
+ * Проверяет, пересекается ли слот с обеденным перерывом
+ */
+function isDuringBreak(
+  slotStart: number,
+  serviceDuration: number,
+  breakStart?: string,
+  breakEnd?: string
+): boolean {
+  if (!breakStart || !breakEnd) return false;
+  
+  const breakStartMins = parseTimeToMinutes(breakStart);
+  const breakEndMins = parseTimeToMinutes(breakEnd);
+  const slotEnd = slotStart + serviceDuration;
+  
+  // Слот пересекается с перерывом если: slotStart < breakEnd AND slotEnd > breakStart
+  return slotStart < breakEndMins && slotEnd > breakStartMins;
+}
+
+/**
  * ЭТАП 6 — ФИЛЬТРАЦИЯ ПРОШЕДШЕГО ВРЕМЕНИ
  * Проверяет, является ли слот прошедшим
  */
@@ -155,7 +179,7 @@ function isSlotPast(slotTime: string, selectedDate: Date): boolean {
  */
 export function generateTimeSlots(params: GenerateSlotsParams): TimeSlot[] {
   const { config, serviceDuration, bookings, selectedDate } = params;
-  const { workDayStart, workDayEnd, slotStep, bufferBetweenClients } = config;
+  const { workDayStart, workDayEnd, slotStep, bufferBetweenClients, breakStart, breakEnd } = config;
   
   // ЭТАП 1: Создание временной сетки
   const startMinutes = parseTimeToMinutes(workDayStart);
@@ -175,6 +199,11 @@ export function generateTimeSlots(params: GenerateSlotsParams): TimeSlot[] {
     
     // ЭТАП 7: Проверка пересечений с существующими бронями
     if (hasIntersection(slotStart, serviceDuration, bufferBetweenClients, bookings)) {
+      continue;
+    }
+    
+    // ЭТАП 8: Проверка обеденного перерыва
+    if (isDuringBreak(slotStart, serviceDuration, breakStart, breakEnd)) {
       continue;
     }
     
