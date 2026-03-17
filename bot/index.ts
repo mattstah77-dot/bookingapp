@@ -191,7 +191,7 @@ export function createBot() {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
+              [{ text: '📅 Открыть панель', web_app: { url: `${serverUrl}/admin` } }],
               [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }]
             ]
           }
@@ -221,7 +221,7 @@ export function createBot() {
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
+              [{ text: '📅 Открыть панель', web_app: { url: `${serverUrl}/admin` } }],
               [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }]
             ]
           }
