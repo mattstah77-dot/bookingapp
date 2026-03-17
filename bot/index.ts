@@ -113,16 +113,40 @@ async function getBookingsListPage(page: number) {
   
   if (pageBookings.length === 0) {
     text += 'Записей пока нет';
-  } else {
-    for (const b of pageBookings) {
-      const status = b.status === 'confirmed' ? '✅' : '❌';
-      const dayStr = formatDateFull(b.date);
-      text += `${status} [${dayStr} ${b.time}] ${b.serviceName} — ${b.price}₽\n`;
-      text += `   ID: ${b.id.slice(0, 8)}\n\n`;
-    }
   }
   
-  return { text, total };
+  // Формируем клавиатуру с кнопками записей
+  const keyboard = [];
+  
+  for (const b of pageBookings) {
+    const status = b.status === 'confirmed' ? '✅' : '❌';
+    const dayStr = formatDateFull(b.date);
+    const btnText = `${status} ${dayStr} ${b.time} | ${b.serviceName} — ${b.price}₽`;
+    keyboard.push([{ text: btnText, callback_data: `booking_view_${b.id}` }]);
+  }
+  
+  // Кнопки пагинации
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const navRow = [];
+  if (page > 0) {
+    navRow.push({ text: '◀ Назад', callback_data: `bookings_page_${page - 1}` });
+  }
+  if (page < totalPages - 1) {
+    navRow.push({ text: 'Далее ▶', callback_data: `bookings_page_${page + 1}` });
+  }
+  if (navRow.length > 0) {
+    keyboard.push(navRow);
+  }
+  
+  // Кнопка возврата в меню
+  keyboard.push([{ text: '🔙 В меню', callback_data: 'admin_menu' }]);
+  
+  return { text, keyboard, total };
+}
+
+// Формирование клавиатуры (для обратной совместимости)
+function getBookingsKeyboard(page: number, total: number, messageId?: number) {
+  return getBookingsListPage(page).then(r => r.keyboard);
 }
 
 export function createBot() {
@@ -173,7 +197,7 @@ export function createBot() {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
-              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_page_0' }]
+              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }]
             ]
           }
         }
@@ -203,7 +227,7 @@ export function createBot() {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
-              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_page_0' }]
+              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }]
             ]
           }
         }
@@ -211,12 +235,36 @@ export function createBot() {
       return;
     }
     
+    // Первый показ списка записей
+    if (callbackData === 'bookings_list') {
+      const { text, keyboard } = await getBookingsListPage(0);
+      await ctx.editMessageText(text, { reply_markup: keyboard });
+      return;
+    }
+    
     // Пагинация записей
     if (callbackData.startsWith('bookings_page_')) {
       const page = parseInt(callbackData.replace('bookings_page_', ''));
-      const { text, total } = await getBookingsListPage(page);
-      const keyboard = getBookingsKeyboard(page, total);
+      const { text, keyboard } = await getBookingsListPage(page);
       
+      await ctx.editMessageText(text, { reply_markup: keyboard });
+      return;
+    }
+    
+    // Просмотр конкретной записи
+    if (callbackData.startsWith('booking_view_')) {
+      const bookingId = callbackData.replace('booking_view_', '');
+      const allBookings = await db.getAllBookings({});
+      const booking = allBookings.find(b => b.id === bookingId);
+      
+      if (!booking) {
+        await ctx.editMessageText('Запись не найдена', {
+          reply_markup: { inline_keyboard: [[{ text: '🔙 Назад', callback_data: 'bookings_page_0' }]] }
+        });
+        return;
+      }
+      
+      const { text, keyboard } = getBookingCard(booking);
       await ctx.editMessageText(text, keyboard);
       return;
     }
