@@ -21,10 +21,108 @@ function isAdmin(ctx: Context): boolean {
   return result;
 }
 
-// Формат даты
-function formatDate(dateStr: string): string {
+// Константы для пагинации
+const PAGE_SIZE = 5;
+
+// Формат даты с днём недели
+function formatDateFull(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
-  return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  const days = ['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  return `${date.getDate()} ${date.toLocaleDateString('ru-RU', { month: 'short' })} (${days[date.getDay()]})`;
+}
+
+// Формирование клавиатуры со списком записей
+function getBookingsKeyboard(page: number, total: number, messageId?: number) {
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const keyboard = [];
+  
+  // Кнопки пагинации
+  const navRow = [];
+  if (page > 0) {
+    navRow.push({ text: '◀ Назад', callback_data: `bookings_page_${page - 1}` });
+  }
+  if (page < totalPages - 1) {
+    navRow.push({ text: 'Далее ▶', callback_data: `bookings_page_${page + 1}` });
+  }
+  if (navRow.length > 0) {
+    keyboard.push(navRow);
+  }
+
+  // Кнопка возврата в меню
+  keyboard.push([{ text: '🔙 В меню', callback_data: 'admin_menu' }]);
+  
+  return {
+    reply_markup: { inline_keyboard: keyboard }
+  };
+}
+
+// Формирование карточки записи
+function getBookingCard(booking: any, messageId?: number) {
+  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
+  const statusColor = booking.status === 'confirmed' ? '#22c55e' : '#ef4444';
+  
+  // Вычисляем время окончания
+  const [hours, mins] = booking.time.split(':').map(Number);
+  const endMins = hours * 60 + mins + booking.duration;
+  const endHours = Math.floor(endMins / 60);
+  const endMinsRem = endMins % 60;
+  const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinsRem).padStart(2, '0')}`;
+  
+  let text = `📋 Запись #${booking.id.slice(0, 8)}\n\n`;
+  text += `✂️ Услуга: ${booking.serviceName}\n`;
+  text += `📅 Дата: ${formatDateFull(booking.date)}\n`;
+  text += `🕐 Время: ${booking.time} - ${endTime}\n`;
+  text += `💰 Цена: ${booking.price} ₽\n`;
+  text += `📊 Статус: ${statusText}\n\n`;
+  
+  if (booking.clientName || booking.clientPhone) {
+    text += `👤 Клиент: ${booking.clientName || '—'}\n`;
+    text += `📱 Телефон: ${booking.clientPhone || '—'}`;
+  }
+  
+  const keyboard = {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: '❌ Отменить', callback_data: `booking_cancel_${booking.id}` },
+          { text: '🗑 Удалить', callback_data: `booking_delete_${booking.id}` }
+        ],
+        [{ text: '🔙 Назад', callback_data: 'bookings_page_0' }]
+      ]
+    }
+  };
+  
+  return { text, keyboard };
+}
+
+// Формирование списка записей для страницы
+async function getBookingsListPage(page: number) {
+  const allBookings = await db.getAllBookings({});
+  
+  // Сортировка: ближайшие первые (по дате → по времени)
+  allBookings.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return a.time.localeCompare(b.time);
+  });
+  
+  const total = allBookings.length;
+  const start = page * PAGE_SIZE;
+  const pageBookings = allBookings.slice(start, start + PAGE_SIZE);
+  
+  let text = `📋 Записи (стр. ${page + 1} из ${Math.ceil(total / PAGE_SIZE)})\n\n`;
+  
+  if (pageBookings.length === 0) {
+    text += 'Записей пока нет';
+  } else {
+    for (const b of pageBookings) {
+      const status = b.status === 'confirmed' ? '✅' : '❌';
+      const dayStr = formatDateFull(b.date);
+      text += `${status} [${dayStr} ${b.time}] ${b.serviceName} — ${b.price}₽\n`;
+      text += `   ID: ${b.id.slice(0, 8)}\n\n`;
+    }
+  }
+  
+  return { text, total };
 }
 
 export function createBot() {
@@ -53,14 +151,13 @@ export function createBot() {
     
     if (isAdmin(ctx)) {
       text += '\n🛠 Админ:\n' +
-        '/admin - Панель управления\n' +
-        '/bookings - Последние записи';
+        '/admin - Панель управления';
     }
     
     await ctx.reply(text);
   });
 
-  // Команда /admin (только для админов)
+  // Команда /admin
   bot.command('admin', async (ctx: Context) => {
     try {
       if (!isAdmin(ctx)) {
@@ -69,13 +166,14 @@ export function createBot() {
       }
       
       const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      
       await ctx.reply(
-        '🛠 Админ-панель\n\n' +
-        'Откройте веб-интерфейс для управления записями:',
+        '🛠 Админ-панель',
         {
           reply_markup: {
             inline_keyboard: [
-              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }]
+              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
+              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_page_0' }]
             ]
           }
         }
@@ -86,35 +184,68 @@ export function createBot() {
     }
   });
 
-  // Команда /bookings (последние записи)
-  bot.command('bookings', async (ctx: Context) => {
-    try {
-      if (!isAdmin(ctx)) {
-        await ctx.reply('⛔ У вас нет доступа.');
-        return;
+  // Обработка callback-запросов
+  bot.on('callback_query', async (ctx: Context) => {
+    const callbackData = ctx.callbackQuery?.data;
+    const msg = ctx.callbackQuery?.message;
+    
+    if (!callbackData || !msg) return;
+    
+    // Отвечаем на callback чтобы убрать "часики"
+    await ctx.answerCallbackQuery();
+    
+    // Меню админа
+    if (callbackData === 'admin_menu') {
+      const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      await ctx.editMessageText(
+        '🛠 Админ-панель',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }],
+              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_page_0' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+    
+    // Пагинация записей
+    if (callbackData.startsWith('bookings_page_')) {
+      const page = parseInt(callbackData.replace('bookings_page_', ''));
+      const { text, total } = await getBookingsListPage(page);
+      const keyboard = getBookingsKeyboard(page, total);
+      
+      await ctx.editMessageText(text, keyboard);
+      return;
+    }
+    
+    // Отмена записи
+    if (callbackData.startsWith('booking_cancel_')) {
+      const bookingId = callbackData.replace('booking_cancel_', '');
+      await db.updateBookingStatus(bookingId, 'cancelled');
+      
+      const booking = (await db.getAllBookings({})).find(b => b.id === bookingId);
+      if (booking) {
+        const { text, keyboard } = getBookingCard(booking);
+        await ctx.editMessageText(text + '\n❌ Запись отменена', keyboard);
       }
+      return;
+    }
+    
+    // Удаление записи
+    if (callbackData.startsWith('booking_delete_')) {
+      const bookingId = callbackData.replace('booking_delete_', '');
+      await db.deleteBooking(bookingId);
       
-      const bookings = await db.getAllBookings({});
-      const recent = bookings.slice(-10).reverse(); // Последние 10
+      // Возвращаемся к списку
+      const page = 0;
+      const { text, total } = await getBookingsListPage(page);
+      const keyboard = getBookingsKeyboard(page, total);
       
-      if (recent.length === 0) {
-        await ctx.reply('📭 Нет записей.');
-        return;
-      }
-      
-      let text = '📋 Последние записи:\n\n';
-      
-      for (const b of recent) {
-        const status = b.status === 'confirmed' ? '✅' : '❌';
-        text += `${status} ${b.serviceName}\n`;
-        text += `   📅 ${formatDate(b.date)} в ${b.time}\n`;
-        text += `   💰 ${b.price} ₽\n\n`;
-      }
-      
-      await ctx.reply(text);
-    } catch (err) {
-      console.error('Error in /bookings:', err);
-      await ctx.reply('❌ Ошибка загрузки записей.');
+      await ctx.editMessageText(text + '\n🗑 Запись удалена', keyboard);
+      return;
     }
   });
 
