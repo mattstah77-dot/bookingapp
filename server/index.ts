@@ -1,6 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { Bot } from 'grammy';
 import { createBot, startBot } from '../bot/index.js';
 import apiRouter from './api.js';
 import { db } from './database.js';
@@ -27,11 +28,17 @@ app.get('/api/health', (req, res) => {
 const distPath = path.join(__dirname, '..');
 app.use(express.static(distPath));
 
+// Глобальный экземпляр бота
+let globalBot: Bot | null = null;
+
 // Telegram webhook endpoint
 app.post('/webhook', async (req, res) => {
-  const bot = createBot();
-  if (bot) {
-    await bot.handleUpdate(req.body);
+  if (globalBot) {
+    try {
+      await globalBot.handleUpdate(req.body);
+    } catch (err) {
+      console.error('Webhook error:', err);
+    }
   }
   res.send('OK');
 });
@@ -59,6 +66,7 @@ async function start() {
       // Запуск Telegram бота
       const bot = createBot();
       if (bot) {
+        globalBot = bot; // Сохраняем для webhook
         await startBot(bot);
       } else {
         console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
