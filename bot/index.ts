@@ -5,6 +5,10 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 
+console.log('🤖 Bot initializing...');
+console.log('📝 BOT_TOKEN set:', !!BOT_TOKEN);
+console.log('📝 ADMIN_IDS:', ADMIN_IDS);
+
 if (!BOT_TOKEN) {
   console.warn('⚠️ BOT_TOKEN not set, bot will not start');
 }
@@ -12,7 +16,9 @@ if (!BOT_TOKEN) {
 // Проверка админа
 function isAdmin(ctx: Context): boolean {
   const userId = ctx.from?.id;
-  return userId ? ADMIN_IDS.includes(userId) : false;
+  const result = userId ? ADMIN_IDS.includes(userId) : false;
+  console.log(`👤 User ${userId}, isAdmin: ${result}`);
+  return result;
 }
 
 // Формат даты
@@ -50,33 +56,38 @@ export function createBot() {
 
   // Команда /admin (только для админов)
   bot.command('admin', async (ctx: Context) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply('⛔ У вас нет доступа к админ-панели.');
-      return;
-    }
-    
-    const serverUrl = process.env.SERVER_URL || 'http://localhost:3000';
-    await ctx.reply(
-      '🛠 Админ-панель\n\n' +
-      'Откройте веб-интерфейс для управления записями:',
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }]
-          ]
-        }
+    try {
+      if (!isAdmin(ctx)) {
+        await ctx.reply('⛔ У вас нет доступа к админ-панели.');
+        return;
       }
-    );
+      
+      const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      await ctx.reply(
+        '🛠 Админ-панель\n\n' +
+        'Откройте веб-интерфейс для управления записями:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📅 Открыть панель', url: `${serverUrl}/admin` }]
+            ]
+          }
+        }
+      );
+    } catch (err) {
+      console.error('Error in /admin:', err);
+      await ctx.reply('❌ Произошла ошибка');
+    }
   });
 
   // Команда /bookings (последние записи)
   bot.command('bookings', async (ctx: Context) => {
-    if (!isAdmin(ctx)) {
-      await ctx.reply('⛔ У вас нет доступа.');
-      return;
-    }
-    
     try {
+      if (!isAdmin(ctx)) {
+        await ctx.reply('⛔ У вас нет доступа.');
+        return;
+      }
+      
       const bookings = await db.getAllBookings({});
       const recent = bookings.slice(-10).reverse(); // Последние 10
       
@@ -96,7 +107,7 @@ export function createBot() {
       
       await ctx.reply(text);
     } catch (err) {
-      console.error('Failed to fetch bookings:', err);
+      console.error('Error in /bookings:', err);
       await ctx.reply('❌ Ошибка загрузки записей.');
     }
   });
@@ -125,14 +136,20 @@ export async function notifyAdmin(bot: Bot, message: string) {
 
 export async function startBot(bot: Bot) {
   console.log('🤖 Telegram bot starting...');
+  console.log('📝 WEBHOOK_URL:', WEBHOOK_URL);
   
   // Используем webhook на production
   if (WEBHOOK_URL) {
-    const webhookUrl = `${WEBHOOK_URL}/webhook`;
-    await bot.api.setWebhook(webhookUrl);
-    console.log(`✅ Webhook set to: ${webhookUrl}`);
+    try {
+      const webhookUrl = `${WEBHOOK_URL}/webhook`;
+      await bot.api.setWebhook(webhookUrl);
+      console.log(`✅ Webhook set to: ${webhookUrl}`);
+    } catch (err) {
+      console.error('❌ Failed to set webhook:', err);
+    }
   } else {
     // Polling для локальной разработки
+    console.log('⚠️ No WEBHOOK_URL, using polling');
     bot.start();
     console.log('✅ Bot is running (polling mode)');
   }
