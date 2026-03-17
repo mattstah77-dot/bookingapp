@@ -5,20 +5,27 @@ const router = Router();
 
 // Проверка админа
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
 function isAdmin(telegramId?: number): boolean {
   return telegramId ? ADMIN_IDS.includes(telegramId) : false;
 }
 
-// Middleware для проверки админа
+// Middleware для проверки админа (Telegram или пароль)
 function requireAdmin(req: any, res: any, next: any) {
-  // Получаем Telegram ID из заголовка или query
+  // Проверка по Telegram ID
   const telegramId = parseInt(req.headers['x-telegram-id'] as string || req.query.telegramId as string || '0');
-  
-  if (!isAdmin(telegramId)) {
-    return res.status(403).json({ error: 'Access denied' });
+  if (isAdmin(telegramId)) {
+    return next();
   }
-  next();
+  
+  // Проверка по паролю
+  const password = req.headers['x-admin-password'] as string || req.query.adminPassword as string;
+  if (password && password === ADMIN_PASSWORD) {
+    return next();
+  }
+  
+  return res.status(403).json({ error: 'Access denied' });
 }
 
 // Получить все услуги

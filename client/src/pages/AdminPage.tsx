@@ -25,9 +25,26 @@ function getTelegramId(): number | undefined {
   return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 }
 
+function getStoredPassword(): string | null {
+  return localStorage.getItem('admin_password');
+}
+
+function setStoredPassword(password: string): void {
+  localStorage.setItem('admin_password', password);
+}
+
 function getAuthHeaders(): HeadersInit {
   const tgId = getTelegramId();
-  return tgId ? { 'x-telegram-id': String(tgId) } : {};
+  const password = getStoredPassword();
+  
+  const headers: HeadersInit = {};
+  if (tgId) {
+    headers['x-telegram-id'] = String(tgId);
+  }
+  if (password) {
+    headers['x-admin-password'] = password;
+  }
+  return headers;
 }
 
 export default function AdminPage() {
@@ -39,6 +56,8 @@ export default function AdminPage() {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [bookedDates, setBookedDates] = useState<Record<string, number>>({});
   const [accessDenied, setAccessDenied] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -47,6 +66,14 @@ export default function AdminPage() {
     if (hex.length !== 6) return false;
     return parseInt(hex, 16) < 128000;
   })();
+
+  // Проверка аутентификации при загрузке
+  useEffect(() => {
+    const password = getStoredPassword();
+    if (password) {
+      setIsAuthenticated(true);
+    }
+  }, []);
 
   useEffect(() => {
     const fetchBookedDates = async () => {
@@ -75,7 +102,7 @@ export default function AdminPage() {
     };
     
     fetchBookedDates();
-  }, [currentMonth]);
+  }, [currentMonth, isAuthenticated]);
 
   useEffect(() => {
     const fetchBookings = async () => {
@@ -122,9 +149,18 @@ export default function AdminPage() {
     return date.toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
+  const handleLogin = () => {
+    if (passwordInput.trim()) {
+      setStoredPassword(passwordInput);
+      setIsAuthenticated(true);
+      // Перезагрузим данные
+      window.location.reload();
+    }
+  };
+
   const handleStatusChange = async (id: string, status: 'confirmed' | 'cancelled') => {
     try {
-      await fetch(`${API_BASE}/admin/bookings/${id}`, {
+      await fetch(`${API_BASE}/admin/bookings/${id}`, { 
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -138,7 +174,7 @@ export default function AdminPage() {
       console.error('Failed to update status:', err);
     }
   };
-
+  
   const handleDelete = async (id: string) => {
     if (!confirm('Удалить эту запись?')) return;
     
@@ -156,14 +192,14 @@ export default function AdminPage() {
   const goToPrevMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
   };
-  
+
   const goToNextMonth = () => {
     setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
   };
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-  if (accessDenied) {
+  if (accessDenied || (!isAuthenticated && !getTelegramId())) {
     return (
       <div 
         style={{ 
@@ -184,13 +220,61 @@ export default function AdminPage() {
           borderRadius: '28px',
           padding: '48px 32px',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+          width: '100%',
+          maxWidth: '320px',
         }}>
-          <div style={{ fontSize: '56px', marginBottom: '20px' }}>⛔</div>
+          <div style={{ fontSize: '56px', marginBottom: '20px' }}>🔐</div>
           <h2 style={{ fontSize: '22px', fontWeight: 700, marginBottom: '10px', color: theme.textColor }}>
-            Доступ запрещен
+            Админ-панель
           </h2>
-          <p style={{ color: theme.hintColor }}>
-            У вас нет доступа к админ-панели
+          <p style={{ color: theme.hintColor, marginBottom: '24px' }}>
+            Введите пароль для входа
+          </p>
+          
+          <input
+            type="password"
+            value={passwordInput}
+            onChange={(e) => setPasswordInput(e.target.value)}
+            placeholder="Пароль"
+            onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+            style={{ 
+              width: '100%',
+              padding: '16px',
+              borderRadius: '14px',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+              background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+              color: theme.textColor,
+              fontSize: '16px',
+              marginBottom: '16px',
+              outline: 'none',
+            }}
+          />
+          
+          <button
+            onClick={handleLogin}
+            style={{ 
+              width: '100%',
+              padding: '16px',
+              borderRadius: '14px',
+              border: 'none',
+              background: `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`,
+              color: theme.buttonTextColor,
+              fontSize: '16px',
+              fontWeight: 600,
+              cursor: 'pointer',
+            }}
+          >
+            Войти
+          </button>
+          
+          {accessDenied && (
+            <p style={{ color: '#ef4444', marginTop: '16px', fontSize: '14px' }}>
+              Неверный пароль
+            </p>
+          )}
+          
+          <p style={{ color: theme.hintColor, marginTop: '24px', fontSize: '12px' }}>
+            Или откройте из Telegram бота
           </p>
         </div>
       </div>
