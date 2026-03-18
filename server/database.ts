@@ -1,4 +1,7 @@
 import { Pool } from 'pg';
+import { 
+  pgTable, serial, varchar, text, integer, boolean, timestamp, jsonb 
+} from 'drizzle-orm/pg-core';
 
 // Подключение к PostgreSQL
 const pool = new Pool({
@@ -259,7 +262,10 @@ class PostgresDatabase {
     if (updates.sortOrder !== undefined) { fields.push(`sort_order = $${paramIndex++}`); values.push(updates.sortOrder); }
     if (updates.isActive !== undefined) { fields.push(`is_active = $${paramIndex++}`); values.push(updates.isActive); }
 
-    if (fields.length === 0) return this.getServiceById(id);
+    if (fields.length === 0) {
+      const service = await this.getServiceById(id);
+      return service || null;
+    }
 
     values.push(id);
     const result = await this.pool.query(

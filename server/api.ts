@@ -88,7 +88,10 @@ router.post('/admin/services', requireAdmin, async (req, res) => {
       description: description || '',
       duration,
       price,
+      category: undefined,
       photos: photos || [],
+      sortOrder: 0,
+      isActive: true,
     });
     
     res.status(201).json(service);
