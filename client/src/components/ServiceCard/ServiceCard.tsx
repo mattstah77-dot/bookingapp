@@ -32,54 +32,57 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
         backdropFilter: 'blur(24px)',
         WebkitBackdropFilter: 'blur(24px)',
         border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)'}`,
-        borderRadius: '20px',
+        borderRadius: '16px',
         boxShadow: isDark 
-          ? '0 6px 24px rgba(0,0,0,0.45)' 
-          : '0 6px 24px rgba(0,0,0,0.08)',
+          ? '0 4px 16px rgba(0,0,0,0.35)' 
+          : '0 4px 16px rgba(0,0,0,0.06)',
         transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
         opacity: 0,
-        transform: 'translateY(16px)',
+        transform: 'translateY(8px)',
         animation: `fadeInUp 0.4s ease forwards`,
-        animationDelay: `${index * 50}ms`,
+        animationDelay: `${index * 40}ms`,
         cursor: 'pointer',
         position: 'relative',
         overflow: 'hidden',
-        minHeight: '140px',
         display: 'flex',
-        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '12px 14px',
+        gap: '12px',
+        minHeight: '60px',
       }}
     >
       {/* Фото */}
-        {hasPhotos && photos && (
-          <div 
+      {hasPhotos && photos && (
+        <div 
+          style={{ 
+            width: '60px',
+            height: '60px',
+            overflow: 'hidden',
+            borderRadius: '12px',
+            flexShrink: 0,
+          }}
+        >
+          <img 
+            src={photos[0]} 
+            alt={service.name}
             style={{
               width: '100%',
-              height: '80px',
-              overflow: 'hidden',
-              borderRadius: '20px 20px 0 0',
+              height: '100%',
+              objectFit: 'cover',
             }}
-          >
-            <img 
-              src={photos[0]} 
-              alt={service.name}
-              style={{
-                width: '100%',
-                height: '100%',
-                objectFit: 'cover',
-              }}
-            />
-          </div>
-        )}
+          />
+        </div>
+      )}
       
       {/* Контент */}
       <div style={{ 
         position: 'relative', 
         zIndex: 1, 
-        padding: '14px 16px',
         flex: 1,
+        minWidth: 0,
         display: 'flex',
         flexDirection: 'column',
-        justifyContent: 'space-between',
+        justifyContent: 'center',
       }}>
         {/* Декоративный элемент */}
         <div style={{
@@ -96,36 +99,39 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
           style={{ 
             color: theme.textColor,
             fontSize: '14px',
-            fontWeight: 700,
+            fontWeight: 600,
             letterSpacing: '-0.2px',
-            lineHeight: 1.3,
             margin: 0,
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
+            whiteSpace: 'nowrap',
           }}
         >
           {service.name}
         </h3>
 
-        <span style={{ 
-          color: theme.buttonColor, 
-          fontSize: '18px', 
-          fontWeight: 700,
-          marginTop: '6px',
-          display: 'block',
-        }}>
-          {service.price.toLocaleString('ru-RU')} ₽
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+          <span style={{ 
+            color: theme.buttonColor, 
+            fontSize: '15px', 
+            fontWeight: 700,
+          }}>
+            {service.price.toLocaleString('ru-RU')} ₽
+          </span>
+          <span style={{ 
+            color: theme.hintColor, 
+            fontSize: '12px',
+          }}>
+            • {service.duration} мин
+          </span>
+        </div>
       </div>
 
       <style>{`
         @keyframes fadeInUp {
           from {
             opacity: 0;
-            transform: translateY(16px);
+            transform: translateY(8px);
           }
           to {
             opacity: 1;

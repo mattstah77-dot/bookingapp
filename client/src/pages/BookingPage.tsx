@@ -338,9 +338,9 @@ export default function BookingPage() {
         {step === 'services' && (
           <div 
             style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(2, 1fr)', 
-              gap: '14px',
+              display: 'flex',
+              flexDirection: 'column', 
+              gap: '10px',
             }}
           >
             {services.map((service, index) => (

@@ -19,7 +19,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
-  rectSortingStrategy,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
@@ -87,29 +87,31 @@ function SortableServiceCard({
             : (isDark ? 'rgba(35,35,35,0.5)' : 'rgba(255,255,255,0.5)'),
           backdropFilter: 'blur(24px)',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)'}`,
-          borderRadius: '20px',
+          borderRadius: '16px',
           boxShadow: isDragging 
             ? '0 16px 48px rgba(0,0,0,0.4)' 
-            : (isDark ? '0 6px 24px rgba(0,0,0,0.45)' : '0 6px 24px rgba(0,0,0,0.08)'),
+            : (isDark ? '0 4px 16px rgba(0,0,0,0.35)' : '0 4px 16px rgba(0,0,0,0.06)'),
           opacity: service.isActive ? 1 : 0.6,
           position: 'relative',
           overflow: 'hidden',
-          minHeight: '120px',
           display: 'flex', 
-          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '12px 14px',
+          gap: '12px',
           cursor: isDragging ? 'grabbing' : 'pointer',
           touchAction: 'none',
+          minHeight: '60px',
         }}
       >
         {/* Фото */}
         {hasPhotos && photos && (
           <div 
             style={{
-              width: '100%',
+              width: '60px',
               height: '60px',
               overflow: 'hidden',
-              borderRadius: '20px 20px 0 0',
-              position: 'relative',
+              borderRadius: '12px',
+              flexShrink: 0,
             }}
           >
             <img 
@@ -121,170 +123,99 @@ function SortableServiceCard({
                 objectFit: 'cover',
               }}
             />
-            {/* Drag handle поверх фото */}
-            <div
-              {...attributes}
-              {...listeners}
-              style={{
-                position: 'absolute',
-                bottom: '6px',
-                left: '6px',
-                padding: '6px',
-                cursor: 'grab',
-                zIndex: 20,
-                background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
-                borderRadius: '8px',
-              }}
-            >
-              <GripVertical size={14} style={{ color: theme.hintColor }} />
-            </div>
-            {/* Admin actions поверх фото */}
-            <div
-              style={{
-                position: 'absolute',
-                bottom: '6px',
-                right: '6px',
-                display: 'flex',
-                gap: '4px',
-                zIndex: 20,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={onToggleVisibility}
-                style={{
-                  padding: '6px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
-                  cursor: 'pointer',
-                }}
-              >
-                {service.isActive 
-                  ? <Eye size={14} style={{ color: theme.buttonColor }} />
-                  : <EyeOff size={14} style={{ color: theme.hintColor }} />
-                }
-              </button>
-              <button
-                onClick={onDelete}
-                style={{
-                  padding: '6px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(255,255,255,0.9)',
-                  cursor: 'pointer',
-                }}
-              >
-                <Trash2 size={14} style={{ color: '#ef4444' }} />
-              </button>
-            </div>
           </div>
         )}
 
-        {/* Контент - если нет фото, добавим padding-top для иконок */}
+        {/* Контент */}
         <div 
           onClick={onEdit} 
           style={{ 
             cursor: 'pointer', 
-            padding: hasPhotos ? '10px 12px' : '12px 12px 12px 36px',
             flex: 1,
+            minWidth: 0,
             display: 'flex',
             flexDirection: 'column',
-            justifyContent: 'space-between',
-            position: 'relative',
+            justifyContent: 'center',
           }}
         >
-          {/* Drag handle - только если нет фото */}
-          {!hasPhotos && (
-            <div
-              {...attributes}
-              {...listeners}
-              style={{
-                position: 'absolute',
-                top: '12px',
-                left: '10px',
-                padding: '6px',
-                cursor: 'grab',
-                zIndex: 10,
-              }}
-            >
-              <GripVertical size={14} style={{ color: theme.hintColor }} />
-            </div>
-          )}
-          
-          {/* Admin actions - только если нет фото */}
-          {!hasPhotos && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '8px',
-                right: '8px',
-                display: 'flex',
-                gap: '2px',
-                zIndex: 10,
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                onClick={onToggleVisibility}
-                style={{
-                  padding: '4px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                {service.isActive 
-                  ? <Eye size={14} style={{ color: theme.buttonColor }} />
-                  : <EyeOff size={14} style={{ color: theme.hintColor }} />
-                }
-              </button>
-              <button
-                onClick={onDelete}
-                style={{
-                  padding: '4px',
-                  borderRadius: '6px',
-                  border: 'none',
-                  background: 'transparent',
-                  cursor: 'pointer',
-                }}
-              >
-                <Trash2 size={14} style={{ color: '#ef4444' }} />
-              </button>
-            </div>
-          )}
-
           <h3 style={{ 
             color: theme.textColor,
-            fontSize: '13px',
-            fontWeight: 700,
-            letterSpacing: '-0.2px',
+            fontSize: '14px',
+            fontWeight: 600,
             margin: 0,
-            paddingRight: hasPhotos ? '0' : '40px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
+            whiteSpace: 'nowrap',
           }}>
             {service.name}
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
             <span style={{ 
               color: theme.buttonColor, 
-              fontSize: '16px', 
+              fontSize: '15px', 
               fontWeight: 700,
             }}>
               {service.price.toLocaleString('ru-RU')} ₽
             </span>
             <span style={{ 
               color: theme.hintColor, 
-              fontSize: '11px',
+              fontSize: '12px',
             }}>
-              {service.duration} мин
+              • {service.duration} мин
             </span>
           </div>
+        </div>
+
+        {/* Admin actions */}
+        <div
+          style={{
+            display: 'flex',
+            gap: '2px',
+            flexShrink: 0,
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Drag handle */}
+          <div
+            {...attributes}
+            {...listeners}
+            style={{
+              padding: '6px',
+              cursor: 'grab',
+              borderRadius: '8px',
+              background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
+            }}
+          >
+            <GripVertical size={16} style={{ color: theme.hintColor }} />
+          </div>
+          
+          <button
+            onClick={onToggleVisibility}
+            style={{
+              padding: '6px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            {service.isActive 
+              ? <Eye size={16} style={{ color: theme.buttonColor }} />
+              : <EyeOff size={16} style={{ color: theme.hintColor }} />
+            }
+          </button>
+          <button
+            onClick={onDelete}
+            style={{
+              padding: '6px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+            }}
+          >
+            <Trash2 size={16} style={{ color: '#ef4444' }} />
+          </button>
         </div>
       </div>
     </div>
@@ -490,11 +421,11 @@ export default function ServicesPage() {
         >
           <SortableContext
             items={services.map(s => s.id)}
-            strategy={rectSortingStrategy}
+            strategy={verticalListSortingStrategy}
           >
             <div style={{ 
-              display: 'grid', 
-              gridTemplateColumns: 'repeat(2, 1fr)', 
+              display: 'flex', 
+              flexDirection: 'column', 
               gap: '10px' 
             }}>
               {services.map((service) => (
