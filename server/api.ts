@@ -61,7 +61,7 @@ router.get('/admin/services', requireAdmin, async (req, res) => {
 // Получить одну услугу
 router.get('/admin/services/:id', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const service = await db.getServiceById(id);
     
     if (service) {
@@ -100,7 +100,7 @@ router.post('/admin/services', requireAdmin, async (req, res) => {
 // Обновить услугу
 router.put('/admin/services/:id', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const { name, description, duration, price, photos, isActive } = req.body;
     
     const service = await db.updateService(id, {
@@ -125,7 +125,7 @@ router.put('/admin/services/:id', requireAdmin, async (req, res) => {
 // Удалить услугу
 router.delete('/admin/services/:id', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const deleted = await db.deleteService(id);
     
     if (deleted) {
@@ -268,7 +268,7 @@ router.post('/bookings', async (req, res) => {
     }
 
     const booking = await db.createBooking({
-      serviceId,
+      serviceId: parseInt(serviceId),
       serviceName: serviceName || '',
       date,
       time,
