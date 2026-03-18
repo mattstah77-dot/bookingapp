@@ -1,15 +1,9 @@
-import { drizzle } from 'drizzle-orm/node-postgres';
 import { Pool } from 'pg';
-import { 
-  pgTable, serial, varchar, text, integer, boolean, timestamp, jsonb 
-} from 'drizzle-orm/pg-core';
 
 // Подключение к PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
 });
-
-export const db = drizzle(pool);
 
 // ========== ТАБЛИЦЫ ==========
 
