@@ -304,7 +304,7 @@ router.post('/bookings', async (req, res) => {
 // Удалить бронирование
 router.delete('/bookings/:id', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const deleted = await db.deleteBooking(id);
     
     if (deleted) {
@@ -395,7 +395,7 @@ router.get('/admin/bookings/dates', requireAdmin, async (req, res) => {
 // Изменить статус бронирования
 router.patch('/admin/bookings/:id', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const { status } = req.body;
     
     if (!status || !['confirmed', 'cancelled'].includes(status)) {
@@ -417,7 +417,7 @@ router.patch('/admin/bookings/:id', requireAdmin, async (req, res) => {
 // Удалить бронирование (админ)
 router.delete('/admin/bookings/:id', requireAdmin, async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const deleted = await db.deleteBooking(id);
     
     if (deleted) {
@@ -453,7 +453,7 @@ router.get('/my-bookings', async (req, res) => {
 // Отменить свою запись
 router.patch('/my-bookings/:id/cancel', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
     
     if (!telegramId) {
@@ -469,7 +469,7 @@ router.patch('/my-bookings/:id/cancel', async (req, res) => {
     }
     
     await db.updateBookingStatus(id, 'cancelled');
-    await db.deleteRemindersByBookingId(id); // Удаляем запланированные напоминания
+    await db.deleteRemindersByBookingId(id);
     
     res.json({ success: true });
   } catch (error) {
@@ -480,7 +480,7 @@ router.patch('/my-bookings/:id/cancel', async (req, res) => {
 // Перенести запись на другую дату/время
 router.patch('/my-bookings/:id/reschedule', async (req, res) => {
   try {
-    const { id } = req.params;
+    const id = parseInt(req.params.id);
     const { date, time } = req.body;
     const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
     

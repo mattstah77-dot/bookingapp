@@ -10,3 +10,9 @@ services:
         value: production
       - key: WEBHOOK_URL
         value: https://bookingapp-obxp.onrender.com
+      - key: DATABASE_URL
+        value: postgresql://bookingapp_db_vsbp_user:eJR96zBgMy1jpFLjWOfioUzffgHTbpwi@dpg-d6ti62ma2pns738rd350-a/bookingapp_db_vsbp
+      - key: BOT_TOKEN
+        value: 8663293479:AAHKXYpT-mL1k7PUTO5v8LxKFrKmFD3yryU
+      - key: ADMIN_IDS
+        value: 1072564720
