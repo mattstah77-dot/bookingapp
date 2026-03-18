@@ -2,8 +2,14 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
-  CalendarDays, Users, ClipboardList, Scissors
+  CalendarDays, Users, ClipboardList, Scissors, Bell, Clock
 } from 'lucide-react';
+
+interface ReminderSettings {
+  enabled: boolean;
+  defaultMinutesBefore: number;
+  customReminders: { serviceId: string; minutesBefore: number }[];
+}
 
 interface Booking {
   id: string;
@@ -58,7 +64,13 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'services'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'services' | 'settings'>('bookings');
+  const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
+    enabled: true,
+    defaultMinutesBefore: 120,
+    customReminders: [],
+  });
+  const [savingSettings, setSavingSettings] = useState(false);
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -134,6 +146,26 @@ export default function AdminPage() {
     fetchBookings();
   }, [selectedDate]);
 
+  // Загрузка настроек напоминаний
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const settingsRes = await fetch(`${API_BASE}/admin/reminder-settings`, { headers: getAuthHeaders() });
+        
+        if (settingsRes.ok) {
+          const settingsData = await settingsRes.json();
+          setReminderSettings(settingsData);
+        }
+      } catch (err) {
+        console.error('Failed to fetch settings:', err);
+      }
+    };
+    
+    if (activeTab === 'settings') {
+      fetchSettings();
+    }
+  }, [activeTab]);
+
   const filteredBookings = useMemo(() => {
     if (filter === 'all') return bookings;
     return bookings.filter(b => b.status === filter);
@@ -187,6 +219,25 @@ export default function AdminPage() {
       setBookings(prev => prev.filter(b => b.id !== id));
     } catch (err) {
       console.error('Failed to delete:', err);
+    }
+  };
+
+  const handleSaveReminderSettings = async () => {
+    setSavingSettings(true);
+    try {
+      const res = await fetch(`${API_BASE}/admin/reminder-settings`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify(reminderSettings),
+      });
+      
+      if (res.ok) {
+        alert('Настройки сохранены!');
+      }
+    } catch (err) {
+      console.error('Failed to save settings:', err);
+    } finally {
+      setSavingSettings(false);
     }
   };
 
@@ -360,7 +411,161 @@ export default function AdminPage() {
             <Scissors size={18} />
             Услуги
           </button>
+          <button
+            onClick={() => setActiveTab('settings')}
+            style={{ 
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+              padding: '14px',
+              borderRadius: '14px',
+              fontSize: '14px',
+              fontWeight: 600,
+              transition: 'all 0.3s ease',
+              background: activeTab === 'settings' 
+                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                : 'transparent',
+              color: activeTab === 'settings' 
+                ? theme.buttonTextColor 
+                : theme.hintColor,
+              border: `1px solid ${activeTab === 'settings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={18} />
+            Настройки
+          </button>
         </div>
+
+        {activeTab === 'settings' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            {/* Включение/выключение напоминаний */}
+            <div 
+              className="glass-card"
+              style={{
+                borderRadius: '20px',
+                padding: '24px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                backdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div>
+                  <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0' }}>
+                    Напоминания клиентам
+                  </h3>
+                  <p style={{ color: theme.hintColor, fontSize: '13px', margin: 0 }}>
+                    Отправлять напоминания о записи
+                  </p>
+                </div>
+                <button
+                  onClick={() => setReminderSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
+                  style={{
+                    width: '52px',
+                    height: '30px',
+                    borderRadius: '15px',
+                    border: 'none',
+                    background: reminderSettings.enabled ? theme.buttonColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
+                    cursor: 'pointer',
+                    position: 'relative',
+                    transition: 'all 0.3s ease',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: '3px',
+                    left: reminderSettings.enabled ? '23px' : '3px',
+                    width: '24px',
+                    height: '24px',
+                    borderRadius: '12px',
+                    background: '#fff',
+                    transition: 'all 0.3s ease',
+                  }} />
+                </button>
+              </div>
+            </div>
+
+            {/* Время напоминания по умолчанию */}
+            <div 
+              className="glass-card"
+              style={{ 
+                borderRadius: '20px',
+                padding: '24px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                backdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                opacity: reminderSettings.enabled ? 1 : 0.5,
+                pointerEvents: reminderSettings.enabled ? 'auto' : 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <Clock size={20} style={{ color: theme.buttonColor }} />
+                <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: 0 }}>
+                  Время напоминания
+                </h3>
+              </div>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                {[
+                  { value: 60, label: '1 час' },
+                  { value: 120, label: '2 часа' },
+                  { value: 180, label: '3 часа' },
+                  { value: 1440, label: 'За сутки' },
+                ].map(option => (
+                  <button
+                    key={option.value}
+                    onClick={() => setReminderSettings(prev => ({ ...prev, defaultMinutesBefore: option.value }))}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      padding: '14px 18px',
+                      borderRadius: '14px',
+                      border: `1px solid ${reminderSettings.defaultMinutesBefore === option.value ? theme.buttonColor : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+                      background: reminderSettings.defaultMinutesBefore === option.value 
+                        ? `${theme.buttonColor}15`
+                        : 'transparent',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    <span style={{ color: theme.textColor, fontSize: '14px', fontWeight: 500 }}>
+                      {option.label}
+                    </span>
+                    {reminderSettings.defaultMinutesBefore === option.value && (
+                      <CheckCircle size={18} style={{ color: theme.buttonColor }} />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Кнопка сохранения */}
+            <button
+              onClick={handleSaveReminderSettings}
+              disabled={savingSettings}
+              style={{ 
+                padding: '18px',
+                borderRadius: '16px',
+                border: 'none',
+                background: `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`,
+                color: theme.buttonTextColor,
+                fontSize: '16px',
+                fontWeight: 600,
+                cursor: savingSettings ? 'not-allowed' : 'pointer',
+                opacity: savingSettings ? 0.7 : 1,
+              }}
+            >
+              {savingSettings ? 'Сохранение...' : 'Сохранить настройки'}
+            </button>
+          </div>
+        )}
 
         {activeTab === 'bookings' && (
           <>

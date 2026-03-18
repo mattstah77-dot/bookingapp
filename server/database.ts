@@ -47,11 +47,31 @@ export interface Schedule {
   breakEnd?: string;
 }
 
+export interface ReminderSettings {
+  enabled: boolean;           // включены ли напоминания
+  defaultMinutesBefore: number; // за сколько минут напоминать по умолчанию (120 = 2 часа)
+  customReminders: {          // дополнительные напоминания для конкретных услуг
+    serviceId: string;
+    minutesBefore: number;
+  }[];
+}
+
+export interface ScheduledReminder {
+  id: string;
+  bookingId: string;
+  telegramId: number;
+  scheduledFor: string;       // ISO datetime когда отправить
+  sent: boolean;              // отправлено ли
+  message?: string;           // текст напоминания
+}
+
 export interface Database {
   services: Service[];
   bookings: Booking[];
   schedule: Schedule[];
   bufferTime: number; // минуты между записями
+  reminderSettings: ReminderSettings;
+  reminders: ScheduledReminder[];
 }
 
 const DEFAULT_DB: Database = {
@@ -72,6 +92,12 @@ const DEFAULT_DB: Database = {
     // Воскресенье - выходной
   ],
   bufferTime: 15, // 15 минут буфер между записями
+  reminderSettings: {
+    enabled: true,
+    defaultMinutesBefore: 120, // 2 часа
+    customReminders: [], // для конкретных услуг
+  },
+  reminders: [],
 };
 
 class AsyncDatabase {
@@ -203,6 +229,17 @@ class AsyncDatabase {
     return null;
   }
 
+  async updateBooking(id: string, updates: Partial<Pick<Booking, 'date' | 'time'>>): Promise<Booking | null> {
+    const booking = this.db.bookings.find(b => b.id === id);
+    if (booking) {
+      if (updates.date) booking.date = updates.date;
+      if (updates.time) booking.time = updates.time;
+      this.scheduleSave();
+      return booking;
+    }
+    return null;
+  }
+
   async getAllBookings(filters: BookingFilters = {}): Promise<Booking[]> {
     let bookings = [...this.db.bookings];
     
@@ -321,6 +358,88 @@ class AsyncDatabase {
     }
 
     return slots;
+  }
+
+  // ========== User Bookings ==========
+  async getBookingsByTelegramId(telegramId: number): Promise<Booking[]> {
+    return this.db.bookings
+      .filter(b => b.telegramId === telegramId)
+      .sort((a, b) => {
+        // Сортировка: сначала будущие, потом прошедшие
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time.localeCompare(b.time);
+      });
+  }
+
+  async getUserUpcomingBookings(telegramId: number): Promise<Booking[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return this.db.bookings
+      .filter(b => b.telegramId === telegramId && b.date >= today && b.status === 'confirmed')
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time.localeCompare(b.time);
+      });
+  }
+
+  async getUserPastBookings(telegramId: number): Promise<Booking[]> {
+    const today = new Date().toISOString().split('T')[0];
+    return this.db.bookings
+      .filter(b => b.telegramId === telegramId && (b.date < today || b.status === 'cancelled'))
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date); // обратный порядок
+        return b.time.localeCompare(a.time);
+      });
+  }
+
+  // ========== Reminder Settings ==========
+  async getReminderSettings(): Promise<ReminderSettings> {
+    return { ...this.db.reminderSettings };
+  }
+
+  async updateReminderSettings(updates: Partial<ReminderSettings>): Promise<ReminderSettings> {
+    this.db.reminderSettings = {
+      ...this.db.reminderSettings,
+      ...updates,
+    };
+    this.scheduleSave();
+    return { ...this.db.reminderSettings };
+  }
+
+  // ========== Scheduled Reminders ==========
+  async createReminder(bookingId: string, telegramId: number, scheduledFor: string, message?: string): Promise<ScheduledReminder> {
+    const reminder: ScheduledReminder = {
+      id: crypto.randomUUID(),
+      bookingId,
+      telegramId,
+      scheduledFor,
+      sent: false,
+      message,
+    };
+    this.db.reminders.push(reminder);
+    this.scheduleSave();
+    return reminder;
+  }
+
+  async getPendingReminders(): Promise<ScheduledReminder[]> {
+    const now = new Date().toISOString();
+    return this.db.reminders.filter(r => !r.sent && r.scheduledFor <= now);
+  }
+
+  async markReminderSent(id: string): Promise<void> {
+    const reminder = this.db.reminders.find(r => r.id === id);
+    if (reminder) {
+      reminder.sent = true;
+      this.scheduleSave();
+    }
+  }
+
+  async deleteRemindersByBookingId(bookingId: string): Promise<void> {
+    this.db.reminders = this.db.reminders.filter(r => r.bookingId !== bookingId);
+    this.scheduleSave();
+  }
+
+  async getRemindersByBookingId(bookingId: string): Promise<ScheduledReminder[]> {
+    return this.db.reminders.filter(r => r.bookingId === bookingId);
   }
 }
 

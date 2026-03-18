@@ -10,7 +10,7 @@ import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
-import { Check, ArrowRight, RotateCcw, Settings } from 'lucide-react';
+import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -311,7 +311,36 @@ export default function BookingPage() {
     >
       <div style={{ maxWidth: '440px', margin: '0 auto' }}>
         {/* Заголовок */}
-        {step === 'services' && <Greeting />}
+        {step === 'services' && (
+          <>
+            <Greeting />
+            
+            {/* Кнопка Мои записи */}
+            <a
+              href="/my-bookings"
+              style={{ 
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                marginBottom: '20px',
+                padding: '12px 20px',
+                borderRadius: '14px',
+                background: isDark 
+                  ? 'rgba(255,255,255,0.08)' 
+                  : 'rgba(0,0,0,0.04)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+                color: theme.hintColor,
+                fontSize: '14px',
+                fontWeight: 500,
+                textDecoration: 'none',
+              }}
+            >
+              <CalendarIcon size={18} />
+              Мои записи
+            </a>
+          </>
+        )}
 
         {/* Навигация назад */}
         {step !== 'services' && <BackButton onClick={goBack} />}
@@ -319,7 +348,7 @@ export default function BookingPage() {
         {/* Сообщение об ошибке */}
         {error && (
           <div 
-            style={{ 
+            style={{
               marginBottom: '24px', 
               padding: '16px 20px',
               borderRadius: '16px',

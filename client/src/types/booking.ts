@@ -10,6 +10,21 @@ export interface Service {
   isActive: boolean;
 }
 
+export interface Booking {
+  id: string;
+  serviceId: string;
+  serviceName: string;
+  date: string; // YYYY-MM-DD
+  time: string; // HH:MM
+  duration: number;
+  price: number;
+  status: 'confirmed' | 'cancelled';
+  clientName?: string;
+  clientPhone?: string;
+  telegramId?: number;
+  createdAt: string;
+}
+
 export interface TimeSlot {
   time: string; // "10:00"
   available: boolean;

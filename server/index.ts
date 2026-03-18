@@ -5,6 +5,7 @@ import { Bot } from 'grammy';
 import { createBot, startBot } from '../bot/index.js';
 import apiRouter from './api.js';
 import { db } from './database.js';
+import { startReminderScheduler, scheduleRemindersForBooking, notifyAdminOfNewBooking } from './reminders.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,9 @@ app.use(express.static(distPath));
 
 // Глобальный экземпляр бота
 let globalBot: Bot | null = null;
+
+// ID админов для уведомлений
+export const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 
 // Telegram webhook endpoint
 app.post('/webhook', async (req, res) => {
@@ -68,6 +72,9 @@ async function start() {
       if (bot) {
         globalBot = bot; // Сохраняем для webhook
         await startBot(bot);
+        
+        // Запуск планировщика напоминаний
+        startReminderScheduler(bot);
       } else {
         console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
       }

@@ -46,19 +46,19 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
         overflow: 'hidden',
         display: 'flex',
         alignItems: 'center',
-        padding: '12px 14px',
+        padding: '10px 14px',
         gap: '12px',
-        minHeight: '60px',
+        minHeight: '52px',
       }}
     >
       {/* Фото */}
       {hasPhotos && photos && (
         <div 
           style={{ 
-            width: '60px',
-            height: '60px',
+            width: '48px',
+            height: '48px',
             overflow: 'hidden',
-            borderRadius: '12px',
+            borderRadius: '10px',
             flexShrink: 0,
           }}
         >
@@ -74,15 +74,14 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
         </div>
       )}
       
-      {/* Контент */}
+      {/* Название - слева */}
       <div style={{ 
         position: 'relative', 
         zIndex: 1, 
         flex: 1,
         minWidth: 0,
         display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
+        alignItems: 'center',
       }}>
         {/* Декоративный элемент */}
         <div style={{
@@ -109,22 +108,28 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
         >
           {service.name}
         </h3>
+      </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-          <span style={{ 
-            color: theme.buttonColor, 
-            fontSize: '15px', 
-            fontWeight: 700,
-          }}>
-            {service.price.toLocaleString('ru-RU')} ₽
-          </span>
-          <span style={{ 
-            color: theme.hintColor, 
-            fontSize: '12px',
-          }}>
-            • {service.duration} мин
-          </span>
-        </div>
+      {/* Цена и длительность - справа */}
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'flex-end',
+        flexShrink: 0,
+      }}>
+        <span style={{ 
+          color: theme.buttonColor, 
+          fontSize: '14px', 
+          fontWeight: 700,
+        }}>
+          {service.price.toLocaleString('ru-RU')} ₽
+        </span>
+        <span style={{ 
+          color: theme.hintColor, 
+          fontSize: '11px',
+        }}>
+          {service.duration} мин
+        </span>
       </div>
 
       <style>{`

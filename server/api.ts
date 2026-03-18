@@ -1,10 +1,18 @@
 import { Router } from 'express';
 import { db } from './database.js';
+import { scheduleRemindersForBooking, notifyAdminOfNewBooking } from './reminders.js';
+import { ADMIN_IDS } from './index.js';
+
+// Глобальная ссылка на бота (будет установлена из index.ts)
+let globalBot: any = null;
+
+export function setGlobalBot(bot: any) {
+  globalBot = bot;
+}
 
 const router = Router();
 
 // Проверка админа
-const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
 function isAdmin(telegramId?: number): boolean {
@@ -271,6 +279,21 @@ router.post('/bookings', async (req, res) => {
       telegramId,
     });
 
+    // Планируем напоминание для клиента
+    await scheduleRemindersForBooking(booking);
+
+    // Отправляем уведомление админу
+    // Используем setTimeout чтобы не блокировать ответ
+    setTimeout(async () => {
+      // Динамически импортируем для избежания циклической зависимости
+      const { Bot } = await import('grammy');
+      const botToken = process.env.BOT_TOKEN;
+      if (botToken && ADMIN_IDS.length > 0) {
+        const tempBot = new Bot(botToken);
+        await notifyAdminOfNewBooking(tempBot, booking, ADMIN_IDS);
+      }
+    }, 100);
+
     res.status(201).json(booking);
   } catch (error) {
     console.error('Booking error:', error);
@@ -404,6 +427,129 @@ router.delete('/admin/bookings/:id', requireAdmin, async (req, res) => {
     }
   } catch (error) {
     res.status(500).json({ error: 'Failed to delete booking' });
+  }
+});
+
+// ========== USER BOOKINGS ROUTES ==========
+
+// Получить записи текущего пользователя
+router.get('/my-bookings', async (req, res) => {
+  try {
+    const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    const upcoming = await db.getUserUpcomingBookings(telegramId);
+    const past = await db.getUserPastBookings(telegramId);
+    
+    res.json({ upcoming, past });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch bookings' });
+  }
+});
+
+// Отменить свою запись
+router.patch('/my-bookings/:id/cancel', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    // Проверяем, что запись принадлежит этому пользователю
+    const bookings = await db.getBookings();
+    const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    await db.updateBookingStatus(id, 'cancelled');
+    await db.deleteRemindersByBookingId(id); // Удаляем запланированные напоминания
+    
+    res.json({ success: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to cancel booking' });
+  }
+});
+
+// Перенести запись на другую дату/время
+router.patch('/my-bookings/:id/reschedule', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date, time } = req.body;
+    const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    if (!date || !time) {
+      return res.status(400).json({ error: 'date and time are required' });
+    }
+    
+    // Проверяем, что запись принадлежит этому пользователю
+    const bookings = await db.getBookings();
+    const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    
+    if (!booking) {
+      return res.status(404).json({ error: 'Booking not found' });
+    }
+    
+    // Проверяем, что новое время доступно
+    const slots = await db.getAvailableSlots(date, booking.duration);
+    if (!slots.includes(time)) {
+      return res.status(409).json({ error: 'Time slot is no longer available' });
+    }
+    
+    // Обновляем запись
+    const updatedBooking = await db.updateBooking(id, { date, time });
+    
+    if (!updatedBooking) {
+      return res.status(500).json({ error: 'Failed to update booking' });
+    }
+    
+    // Удаляем старые напоминания и создаём новые
+    await db.deleteRemindersByBookingId(id);
+    await scheduleRemindersForBooking(updatedBooking);
+    
+    res.json(updatedBooking);
+  } catch (error) {
+    console.error('Reschedule error:', error);
+    res.status(500).json({ error: 'Failed to reschedule booking' });
+  }
+});
+
+// ========== REMINDER SETTINGS ROUTES ==========
+
+// Получить настройки напоминаний
+router.get('/admin/reminder-settings', requireAdmin, async (req, res) => {
+  try {
+    const settings = await db.getReminderSettings();
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch reminder settings' });
+  }
+});
+
+// Обновить настройки напоминаний
+router.put('/admin/reminder-settings', requireAdmin, async (req, res) => {
+  try {
+    const { enabled, defaultMinutesBefore, customReminders } = req.body;
+    
+    const settings = await db.updateReminderSettings({
+      ...(enabled !== undefined && { enabled }),
+      ...(defaultMinutesBefore !== undefined && { defaultMinutesBefore }),
+      ...(customReminders !== undefined && { customReminders }),
+    });
+    
+    res.json(settings);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update reminder settings' });
   }
 });
 

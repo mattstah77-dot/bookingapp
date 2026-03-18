@@ -159,7 +159,48 @@ export function createBot() {
 
   // Команда /start
   bot.command('start', async (ctx: Context) => {
-    await ctx.reply('Привет! Я бот для бронирования. 👋\n\nИспользуйте /help для списка команд.');
+    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+    
+    const keyboard = new Keyboard()
+      .text('📋 Мои записи').row()
+      .text('✂️ Записаться');
+    
+    await ctx.reply(
+      'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
+      { reply_markup: keyboard }
+    );
+  });
+
+  // Обработка "Мои записи"
+  bot.hears('📋 Мои записи', async (ctx: Context) => {
+    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+    
+    await ctx.reply(
+      'Ваши записи:',
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '📋 Открыть мои записи', web_app: { url: `${serverUrl}/my-bookings` } }]
+          ]
+        }
+      }
+    );
+  });
+
+  // Обработка "Записаться"
+  bot.hears('✂️ Записаться', async (ctx: Context) => {
+    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+    
+    await ctx.reply(
+      'Перейдите к записи:',
+      {
+        reply_markup: {
+          inline_keyboard: [
+            [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }]
+          ]
+        }
+      }
+    );
   });
 
   // Команда /help
