@@ -6,7 +6,7 @@ import { ConfirmModal } from '../components/ConfirmModal/ConfirmModal';
 import { Plus, GripVertical, Eye, EyeOff, Trash2 } from 'lucide-react';
 import {
   DndContext,
-  closestCenter,
+  closestCorners,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
@@ -94,7 +94,7 @@ function SortableServiceCard({
           opacity: service.isActive ? 1 : 0.6,
           position: 'relative',
           overflow: 'hidden',
-          minHeight: '140px',
+          minHeight: '120px',
           display: 'flex', 
           flexDirection: 'column',
           cursor: isDragging ? 'grabbing' : 'pointer',
@@ -106,7 +106,7 @@ function SortableServiceCard({
           <div 
             style={{
               width: '100%',
-              height: '70px',
+              height: '60px',
               overflow: 'hidden',
               borderRadius: '20px 20px 0 0',
               position: 'relative',
@@ -186,7 +186,7 @@ function SortableServiceCard({
           onClick={onEdit} 
           style={{ 
             cursor: 'pointer', 
-            padding: hasPhotos ? '12px 14px' : '14px 14px 14px 40px',
+            padding: hasPhotos ? '10px 12px' : '12px 12px 12px 36px',
             flex: 1,
             display: 'flex',
             flexDirection: 'column',
@@ -257,11 +257,11 @@ function SortableServiceCard({
 
           <h3 style={{ 
             color: theme.textColor,
-            fontSize: '14px',
+            fontSize: '13px',
             fontWeight: 700,
             letterSpacing: '-0.2px',
             margin: 0,
-            paddingRight: hasPhotos ? '0' : '50px',
+            paddingRight: hasPhotos ? '0' : '40px',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
@@ -270,17 +270,17 @@ function SortableServiceCard({
           }}>
             {service.name}
           </h3>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
             <span style={{ 
               color: theme.buttonColor, 
-              fontSize: '18px', 
+              fontSize: '16px', 
               fontWeight: 700,
             }}>
               {service.price.toLocaleString('ru-RU')} ₽
             </span>
             <span style={{ 
               color: theme.hintColor, 
-              fontSize: '12px',
+              fontSize: '11px',
             }}>
               {service.duration} мин
             </span>
@@ -485,7 +485,7 @@ export default function ServicesPage() {
         {/* Список услуг - сетка 2 колонки */}
         <DndContext
           sensors={sensors}
-          collisionDetection={closestCenter}
+          collisionDetection={closestCorners}
           onDragEnd={handleDragEnd}
         >
           <SortableContext
@@ -495,7 +495,7 @@ export default function ServicesPage() {
             <div style={{ 
               display: 'grid', 
               gridTemplateColumns: 'repeat(2, 1fr)', 
-              gap: '14px' 
+              gap: '10px' 
             }}>
               {services.map((service) => (
                 <SortableServiceCard
