@@ -68,7 +68,7 @@ function getBookingCard(booking: any, messageId?: number) {
   const endMinsRem = endMins % 60;
   const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinsRem).padStart(2, '0')}`;
   
-  let text = `📋 Запись #${booking.id.slice(0, 8)}\n\n`;
+  let text = `📋 Запись #${booking.id}\n\n`;
   text += `✂️ Услуга: ${booking.serviceName}\n`;
   text += `📅 Дата: ${formatDateFull(booking.date)}\n`;
   text += `🕐 Время: ${booking.time} - ${endTime}\n`;
@@ -289,7 +289,7 @@ export function createBot() {
     
     // Просмотр конкретной записи
     if (callbackData.startsWith('booking_view_')) {
-      const bookingId = callbackData.replace('booking_view_', '');
+      const bookingId = parseInt(callbackData.replace('booking_view_', ''));
       const allBookings = await db.getAllBookings({});
       const booking = allBookings.find(b => b.id === bookingId);
       
@@ -307,7 +307,7 @@ export function createBot() {
     
     // Отмена записи
     if (callbackData.startsWith('booking_cancel_')) {
-      const bookingId = callbackData.replace('booking_cancel_', '');
+      const bookingId = parseInt(callbackData.replace('booking_cancel_', ''));
       await db.updateBookingStatus(bookingId, 'cancelled');
       
       const booking = (await db.getAllBookings({})).find(b => b.id === bookingId);
@@ -320,7 +320,7 @@ export function createBot() {
     
     // Удаление записи
     if (callbackData.startsWith('booking_delete_')) {
-      const bookingId = callbackData.replace('booking_delete_', '');
+      const bookingId = parseInt(callbackData.replace('booking_delete_', ''));
       await db.deleteBooking(bookingId);
       
       // Возвращаемся к списку
