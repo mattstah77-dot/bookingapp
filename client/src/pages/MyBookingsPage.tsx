@@ -552,6 +552,7 @@ export default function MyBookingsPage() {
       'Вы уверены, что хотите отменить эту запись?',
       async () => {
         const telegramId = getTelegramId();
+        console.log('[CANCEL] bookingId:', bookingId, 'telegramId:', telegramId);
         if (!telegramId) return;
 
         setCancelling(bookingId);
@@ -561,6 +562,10 @@ export default function MyBookingsPage() {
             headers: { 'x-telegram-id': String(telegramId) },
           });
 
+          console.log('[CANCEL] response status:', res.status);
+          const data = await res.json();
+          console.log('[CANCEL] response data:', data);
+
           if (res.ok) {
             const cancelled = upcoming.find(b => b.id === bookingId);
             if (cancelled) {
@@ -569,7 +574,7 @@ export default function MyBookingsPage() {
             }
             showAlert('Запись отменена', 'Ваша запись была успешно отменена', 'success');
           } else {
-            showAlert('Ошибка', 'Не удалось отменить запись', 'error');
+            showAlert('Ошибка', data.error || 'Не удалось отменить запись', 'error');
           }
         } catch (err) {
           console.error('Failed to cancel booking:', err);
@@ -586,6 +591,7 @@ export default function MyBookingsPage() {
     if (!rescheduleBooking) return;
     
     const telegramId = getTelegramId();
+    console.log('[RESCHEDULE] bookingId:', rescheduleBooking.id, 'telegramId:', telegramId, 'date:', date, 'time:', time);
     if (!telegramId) return;
 
     setRescheduling(true);
@@ -595,8 +601,11 @@ export default function MyBookingsPage() {
         headers: { 'x-telegram-id': String(telegramId) },
       });
       const data = await resBookings.json();
+      console.log('[RESCHEDULE] all bookings:', data);
       const allBookings = [...(data.upcoming || []), ...(data.past || [])];
       const currentBooking = allBookings.find((b: Booking) => b.id === rescheduleBooking.id);
+      
+      console.log('[RESCHEDULE] currentBooking:', currentBooking);
       
       if (!currentBooking) {
         showAlert('Запись не найдена', 'Возможно, она была удалена или отменена', 'error');
@@ -613,6 +622,10 @@ export default function MyBookingsPage() {
         },
         body: JSON.stringify({ date, time }),
       });
+
+      console.log('[RESCHEDULE] response status:', res.status);
+      const resData = await res.json();
+      console.log('[RESCHEDULE] response data:', resData);
 
       if (res.ok) {
         const updated = await res.json();

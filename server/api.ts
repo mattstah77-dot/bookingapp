@@ -469,13 +469,18 @@ router.patch('/my-bookings/:id/cancel', async (req, res) => {
     const id = parseInt(req.params.id);
     const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
     
+    console.log('[CANCEL] id:', id, 'telegramId:', telegramId);
+    
     if (!telegramId) {
       return res.status(400).json({ error: 'telegramId required' });
     }
     
     // Проверяем, что запись принадлежит этому пользователю
     const bookings = await db.getBookings();
+    console.log('[CANCEL] all bookings:', bookings.map(b => ({ id: b.id, telegramId: b.telegramId })));
+    
     const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    console.log('[CANCEL] found booking:', booking);
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -486,6 +491,7 @@ router.patch('/my-bookings/:id/cancel', async (req, res) => {
     
     res.json({ success: true });
   } catch (error) {
+    console.error('[CANCEL] error:', error);
     res.status(500).json({ error: 'Failed to cancel booking' });
   }
 });
@@ -497,6 +503,8 @@ router.patch('/my-bookings/:id/reschedule', async (req, res) => {
     const { date, time } = req.body;
     const telegramId = parseInt(req.headers['x-telegram-id'] as string || '0');
     
+    console.log('[RESCHEDULE] id:', id, 'telegramId:', telegramId, 'date:', date, 'time:', time);
+    
     if (!telegramId) {
       return res.status(400).json({ error: 'telegramId required' });
     }
@@ -507,7 +515,10 @@ router.patch('/my-bookings/:id/reschedule', async (req, res) => {
     
     // Проверяем, что запись принадлежит этому пользователю
     const bookings = await db.getBookings();
+    console.log('[RESCHEDULE] all bookings:', bookings.map(b => ({ id: b.id, telegramId: b.telegramId })));
+    
     const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    console.log('[RESCHEDULE] found booking:', booking);
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -532,7 +543,7 @@ router.patch('/my-bookings/:id/reschedule', async (req, res) => {
     
     res.json(updatedBooking);
   } catch (error) {
-    console.error('Reschedule error:', error);
+    console.error('[RESCHEDULE] error:', error);
     res.status(500).json({ error: 'Failed to reschedule booking' });
   }
 });

@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
+import { Alert } from '../components/Alert/Alert';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
   CalendarDays, Users, ClipboardList, Scissors, Bell, Clock,
@@ -86,7 +87,27 @@ export default function AdminPage() {
   });
   const [savingSettings, setSavingSettings] = useState(false);
   const [editingService, setEditingService] = useState<Service | null>(null);
+  const [showServiceForm, setShowServiceForm] = useState(false);
   const [serviceForm, setServiceForm] = useState({ name: '', description: '', duration: 30, price: 1000 });
+
+  // Alert state
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: '', type: 'info' });
+
+  const showAlert = (title: string, message?: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertState({ isOpen: true, title, message, type });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setAlertState({ isOpen: true, title, message, type: 'warning', confirmText: 'Да', cancelText: 'Отмена', onConfirm });
+  };
 
   // Функция возврата на главную
   const goBack = () => {
@@ -207,25 +228,27 @@ export default function AdminPage() {
   // Сохранить услугу
   const handleSaveService = async () => {
     if (!serviceForm.name.trim()) {
-      alert('Введите название услуги');
+      showAlert('Ошибка', 'Введите название услуги', 'error');
       return;
     }
     
     try {
       if (editingService) {
         // Обновить
-        await fetch(`${API_BASE}/services/${editingService.id}`, {
+        const res = await fetch(`${API_BASE}/services/${editingService.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(serviceForm),
         });
+        if (!res.ok) throw new Error('Failed to update');
       } else {
         // Создать
-        await fetch(`${API_BASE}/services`, {
+        const res = await fetch(`${API_BASE}/services`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(serviceForm),
         });
+        if (!res.ok) throw new Error('Failed to create');
       }
       
       // Перезагрузить список
@@ -234,40 +257,53 @@ export default function AdminPage() {
       setServices(data);
       setEditingService(null);
       setServiceForm({ name: '', description: '', duration: 30, price: 1000 });
+      setShowServiceForm(false);
+      showAlert('Сохранено', editingService ? 'Услуга обновлена' : 'Услуга создана', 'success');
     } catch (err) {
       console.error('Failed to save service:', err);
-      alert('Ошибка сохранения');
+      showAlert('Ошибка', 'Не удалось сохранить услугу', 'error');
     }
   };
 
   // Переключить видимость услуги
   const handleToggleService = async (id: number, currentActive: boolean) => {
     try {
-      await fetch(`${API_BASE}/services/${id}`, {
+      const res = await fetch(`${API_BASE}/services/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ isActive: !currentActive }),
       });
+      if (!res.ok) throw new Error('Failed to toggle');
       
       setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: !currentActive } : s));
+      showAlert('Сохранено', !currentActive ? 'Услуга теперь видна' : 'Услуга скрыта', 'success');
     } catch (err) {
       console.error('Failed to toggle service:', err);
+      showAlert('Ошибка', 'Не удалось изменить видимость', 'error');
     }
   };
 
   // Удалить услугу
-  const handleDeleteService = async (id: number) => {
-    if (!confirm('Удалить эту услугу?')) return;
-    
-    try {
-      await fetch(`${API_BASE}/services/${id}`, {
-        method: 'DELETE',
-        headers: getAuthHeaders(),
-      });
-      setServices(prev => prev.filter(s => s.id !== id));
-    } catch (err) {
-      console.error('Failed to delete service:', err);
-    }
+  const handleDeleteService = (id: number) => {
+    showConfirm(
+      'Удалить услугу?',
+      'Эта услуга будет удалена безвозвратно.',
+      async () => {
+        try {
+          const res = await fetch(`${API_BASE}/services/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          });
+          if (!res.ok) throw new Error('Failed to delete');
+          
+          setServices(prev => prev.filter(s => s.id !== id));
+          showAlert('Удалено', 'Услуга удалена', 'success');
+        } catch (err) {
+          console.error('Failed to delete service:', err);
+          showAlert('Ошибка', 'Не удалось удалить услугу', 'error');
+        }
+      }
+    );
   };
 
   const filteredBookings = useMemo(() => {
@@ -698,7 +734,7 @@ export default function AdminPage() {
           <div style={{ animation: 'fadeIn 0.3s ease' }}>
             {/* Кнопка добавления */}
             <button
-              onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); }}
+              onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); setShowServiceForm(true); }}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -721,7 +757,7 @@ export default function AdminPage() {
             </button>
 
             {/* Форма редактирования */}
-            {(editingService || serviceForm.name) && (
+            {showServiceForm && (
               <div
                 className="glass-card"
                 style={{ 
@@ -837,7 +873,7 @@ export default function AdminPage() {
                       Сохранить
                     </button>
                     <button
-                      onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); }}
+                      onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); setShowServiceForm(false); }}
                       style={{ 
                         padding: '14px 20px',
                         borderRadius: '12px',
@@ -875,7 +911,7 @@ export default function AdminPage() {
                         : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
                       backdropFilter: 'blur(20px)',
                       border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-                      opacity: service.isActive ? 1 : 0.5,
+                      opacity: service.isActive !== false ? 1 : 0.5,
                       transition: 'opacity 0.2s ease',
                     }}
                   >
@@ -909,7 +945,7 @@ export default function AdminPage() {
                           {service.isActive ? <Eye size={16} style={{ color: '#22c55e' }} /> : <EyeOff size={16} style={{ color: theme.hintColor }} />}
                         </button>
                         <button
-                          onClick={() => { setEditingService(service); setServiceForm({ name: service.name, description: service.description || '', duration: service.duration, price: service.price }); }}
+                          onClick={() => { setEditingService(service); setServiceForm({ name: service.name, description: service.description || '', duration: service.duration, price: service.price }); setShowServiceForm(true); }}
                           title="Редактировать"
                           style={{
                             padding: '8px',
@@ -1300,6 +1336,18 @@ export default function AdminPage() {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
+
+      {/* Кастомный Alert */}
+      <Alert
+        isOpen={alertState.isOpen}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        confirmText={alertState.confirmText}
+        cancelText={alertState.cancelText}
+        onConfirm={alertState.onConfirm}
+        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
