@@ -58,6 +58,16 @@ router.get('/admin/services', requireAdmin, async (req, res) => {
   }
 });
 
+// Получить все услуги (для админ-панели)
+router.get('/admin/services', async (req, res) => {
+  try {
+    const services = await db.getServices(true); // includeInactive = true
+    res.json(services);
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch services' });
+  }
+});
+
 // Получить одну услугу
 router.get('/admin/services/:id', requireAdmin, async (req, res) => {
   try {
@@ -93,7 +103,7 @@ router.post('/admin/services', requireAdmin, async (req, res) => {
       sortOrder: 0,
       isActive: true,
     });
-    
+
     res.status(201).json(service);
   } catch (error) {
     res.status(500).json({ error: 'Failed to create service' });

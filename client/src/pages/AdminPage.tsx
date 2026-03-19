@@ -64,13 +64,18 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'services' | 'settings'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'settings'>('bookings');
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
     enabled: true,
     defaultMinutesBefore: 120,
     customReminders: [],
   });
   const [savingSettings, setSavingSettings] = useState(false);
+
+  // Функция возврата на главную
+  const goBack = () => {
+    window.location.href = '/';
+  };
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -190,7 +195,7 @@ export default function AdminPage() {
       window.location.reload();
     }
   };
-
+  
   const handleStatusChange = async (id: string, status: 'confirmed' | 'cancelled') => {
     try {
       await fetch(`${API_BASE}/admin/bookings/${id}`, { 
@@ -207,7 +212,7 @@ export default function AdminPage() {
       console.error('Failed to update status:', err);
     }
   };
-  
+
   const handleDelete = async (id: string) => {
     if (!confirm('Удалить эту запись?')) return;
     
@@ -344,6 +349,27 @@ export default function AdminPage() {
       }}
     >
       <div style={{ maxWidth: '440px', margin: '0 auto' }}>
+        {/* Кнопка назад */}
+        <button
+          onClick={goBack}
+          style={{ 
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            background: 'transparent',
+            border: 'none',
+            color: theme.buttonColor,
+            fontSize: '14px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            marginBottom: '16px',
+            padding: '8px 0',
+          }}
+        >
+          <ChevronLeft size={18} />
+          На главную
+        </button>
+
         {/* Заголовок */}
         <div style={{ marginBottom: '24px' }}>
           <div style={{
@@ -387,10 +413,7 @@ export default function AdminPage() {
             Записи
           </button>
           <button
-            onClick={() => {
-              const baseUrl = window.location.origin;
-              window.location.href = `${baseUrl}/admin/services`;
-            }}
+            onClick={() => window.location.href = '/admin/services'}
             style={{ 
               flex: 1,
               display: 'flex',

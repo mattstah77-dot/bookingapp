@@ -399,8 +399,8 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
               />
             </div>
 
-            {/* Длительность и цена */}
-            <div style={{ display: 'flex', gap: '12px' }}>
+            {/* Длительность и цена - вертикально на мобильных */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
               <div style={{ flex: 1 }}>
                 <label style={{
                   display: 'block',
@@ -425,6 +425,7 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
                     color: theme.textColor,
                     fontSize: '15px',
                     outline: 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>
@@ -452,6 +453,7 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
                     color: theme.textColor,
                     fontSize: '15px',
                     outline: 'none',
+                    boxSizing: 'border-box',
                   }}
                 />
               </div>

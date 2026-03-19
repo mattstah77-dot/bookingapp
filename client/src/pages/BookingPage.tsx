@@ -113,9 +113,14 @@ export default function BookingPage() {
       const day = String(selectedDate.getDate()).padStart(2, '0');
       const dateStr = `${year}-${month}-${day}`;
       
+      const telegramId = getTelegramId();
+      
       const res = await fetch(`${API_BASE}/bookings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          ...(telegramId && { 'x-telegram-id': String(telegramId) }),
+        },
         body: JSON.stringify({
           serviceId: selectedService.id,
           serviceName: selectedService.name,
@@ -123,6 +128,7 @@ export default function BookingPage() {
           time: selectedSlot,
           duration: selectedService.duration,
           price: selectedService.price,
+          telegramId,
         }),
       });
 
@@ -562,8 +568,9 @@ export default function BookingPage() {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '6px',
-              padding: '10px 14px',
+              justifyContent: 'center',
+              width: '44px',
+              height: '44px',
               borderRadius: '16px',
               background: isDark 
                 ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
@@ -572,13 +579,10 @@ export default function BookingPage() {
               border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
               boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.1)',
               color: theme.hintColor,
-              fontSize: '12px',
-              fontWeight: 500,
               textDecoration: 'none',
             }}
           >
-            <Settings size={14} />
-            Админ
+            <Settings size={20} />
           </a>
         </div>
       )}
