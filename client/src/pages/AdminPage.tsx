@@ -781,8 +781,9 @@ export default function AdminPage() {
                       </label>
                       <input
                         type="number"
-                        value={serviceForm.duration}
-                        onChange={(e) => setServiceForm(prev => ({ ...prev, duration: parseInt(e.target.value) || 30 }))}
+                        value={serviceForm.duration || ''}
+                        onChange={(e) => setServiceForm(prev => ({ ...prev, duration: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 }))}
+                        onFocus={(e) => e.target.select()}
                         style={{
                           width: '100%',
                           padding: '14px 16px',
@@ -801,8 +802,9 @@ export default function AdminPage() {
                       </label>
                       <input
                         type="number"
-                        value={serviceForm.price}
-                        onChange={(e) => setServiceForm(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+                        value={serviceForm.price || ''}
+                        onChange={(e) => setServiceForm(prev => ({ ...prev, price: e.target.value === '' ? 0 : parseInt(e.target.value) || 0 }))}
+                        onFocus={(e) => e.target.select()}
                         style={{
                           width: '100%',
                           padding: '14px 16px',
@@ -860,14 +862,14 @@ export default function AdminPage() {
                 Нет услуг
               </div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
                 {services.map(service => (
                   <div
                     key={service.id}
                     className="glass-card"
                     style={{ 
-                      borderRadius: '18px',
-                      padding: '18px',
+                      borderRadius: '14px',
+                      padding: '14px',
                       background: isDark 
                         ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
                         : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
@@ -877,19 +879,14 @@ export default function AdminPage() {
                       transition: 'opacity 0.2s ease',
                     }}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 700, color: theme.textColor, fontSize: '16px', marginBottom: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, color: theme.textColor, fontSize: '14px', marginBottom: '2px' }}>
                           {service.name}
                         </div>
-                        {service.description && (
-                          <div style={{ fontSize: '13px', color: theme.hintColor, marginBottom: '8px' }}>
-                            {service.description}
-                          </div>
-                        )}
-                        <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                        <div style={{ display: 'flex', gap: '12px', fontSize: '12px' }}>
                           <span style={{ color: theme.hintColor }}>
-                            🕐 {service.duration} мин
+                            {service.duration} мин
                           </span>
                           <span style={{ color: theme.buttonColor, fontWeight: 600 }}>
                             {service.price} ₽
@@ -897,45 +894,45 @@ export default function AdminPage() {
                         </div>
                       </div>
                       
-                      <div style={{ display: 'flex', gap: '6px' }}>
+                      <div style={{ display: 'flex', gap: '4px' }}>
                         <button
                           onClick={() => handleToggleService(service.id, service.isActive)}
                           title={service.isActive ? 'Скрыть' : 'Показать'}
                           style={{
-                            padding: '10px',
-                            borderRadius: '10px',
+                            padding: '8px',
+                            borderRadius: '8px',
                             background: service.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.1)',
                             border: 'none',
                             cursor: 'pointer',
                           }}
                         >
-                          {service.isActive ? <Eye size={18} style={{ color: '#22c55e' }} /> : <EyeOff size={18} style={{ color: theme.hintColor }} />}
+                          {service.isActive ? <Eye size={16} style={{ color: '#22c55e' }} /> : <EyeOff size={16} style={{ color: theme.hintColor }} />}
                         </button>
                         <button
                           onClick={() => { setEditingService(service); setServiceForm({ name: service.name, description: service.description || '', duration: service.duration, price: service.price }); }}
                           title="Редактировать"
                           style={{
-                            padding: '10px',
-                            borderRadius: '10px',
+                            padding: '8px',
+                            borderRadius: '8px',
                             background: 'rgba(59,130,246,0.15)',
                             border: 'none',
                             cursor: 'pointer',
                           }}
                         >
-                          <Edit2 size={18} style={{ color: '#3b82f6' }} />
+                          <Edit2 size={16} style={{ color: '#3b82f6' }} />
                         </button>
                         <button
                           onClick={() => handleDeleteService(service.id)}
                           title="Удалить"
                           style={{
-                            padding: '10px',
-                            borderRadius: '10px',
+                            padding: '8px',
+                            borderRadius: '8px',
                             background: 'rgba(239,68,68,0.15)',
                             border: 'none',
                             cursor: 'pointer',
                           }}
                         >
-                          <Trash2 size={18} style={{ color: '#ef4444' }} />
+                          <Trash2 size={16} style={{ color: '#ef4444' }} />
                         </button>
                       </div>
                     </div>
