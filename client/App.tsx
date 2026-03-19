@@ -14,10 +14,10 @@ function App() {
     const path = window.location.pathname;
     if (path === '/my-bookings') {
       setPage('my-bookings');
+    } else if (path === '/admin/services' || path === '/services') {
+      setPage('services');
     } else if (path.startsWith('/admin')) {
       setPage('admin');
-    } else if (path.startsWith('/services') || path === '/admin/services') {
-      setPage('services');
     } else {
       setPage('booking');
     }

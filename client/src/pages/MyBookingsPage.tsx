@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import type { Booking } from '../types/booking';
 import { BackButton } from '../components/BackButton/BackButton';
-import { Calendar as CalendarIcon, Clock, Scissors, X, CalendarDays } from 'lucide-react';
+import { Calendar as CalendarIcon, Clock, Scissors, X, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -79,7 +79,7 @@ function MiniCalendar({
           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1))}
           style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer' }}
         >
-          <span style={{ color: theme.hintColor }}>◀</span>
+          <ChevronLeft size={16} style={{ color: theme.hintColor }} />
         </button>
         <span style={{ color: theme.textColor, fontWeight: 600, fontSize: '14px' }}>
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
@@ -88,7 +88,7 @@ function MiniCalendar({
           onClick={() => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1))}
           style={{ padding: '8px', background: 'transparent', border: 'none', cursor: 'pointer' }}
         >
-          <span style={{ color: theme.hintColor }}>▶</span>
+          <ChevronRight size={16} style={{ color: theme.hintColor }} />
         </button>
       </div>
 
@@ -680,7 +680,9 @@ export default function MyBookingsPage() {
             padding: '60px 20px',
             color: theme.hintColor,
           }}>
-            <CalendarIcon size={48} style={{ opacity: 0.3, marginBottom: '16px' }} />
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+              <CalendarIcon size={48} style={{ opacity: 0.3 }} />
+            </div>
             <p style={{ fontSize: '15px' }}>
               {activeTab === 'upcoming' 
                 ? 'У вас нет предстоящих записей'

@@ -349,25 +349,26 @@ export default function AdminPage() {
       }}
     >
       <div style={{ maxWidth: '440px', margin: '0 auto' }}>
-        {/* Кнопка назад */}
+        {/* Кнопка назад - только иконка */}
         <button
           onClick={goBack}
+          title="На главную"
           style={{ 
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            background: 'transparent',
+            justifyContent: 'center',
+            width: '36px',
+            height: '36px',
+            background: isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)',
             border: 'none',
+            borderRadius: '10px',
             color: theme.buttonColor,
-            fontSize: '14px',
-            fontWeight: 600,
             cursor: 'pointer',
             marginBottom: '16px',
-            padding: '8px 0',
+            padding: 0,
           }}
         >
-          <ChevronLeft size={18} />
-          На главную
+          <ChevronLeft size={20} />
         </button>
 
         {/* Заголовок */}
