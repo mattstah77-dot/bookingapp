@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import type { Booking } from '../types/booking';
 import { BackButton } from '../components/BackButton/BackButton';
+import { Alert } from '../components/Alert/Alert';
 import { Calendar as CalendarIcon, Clock, Scissors, X, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -491,6 +492,25 @@ export default function MyBookingsPage() {
   const [rescheduleBooking, setRescheduleBooking] = useState<Booking | null>(null);
   const [rescheduling, setRescheduling] = useState(false);
 
+  // Alert states
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+    confirmText?: string;
+    cancelText?: string;
+    onConfirm?: () => void;
+  }>({ isOpen: false, title: '', type: 'info' });
+
+  const showAlert = (title: string, message?: string, type: 'success' | 'error' | 'warning' | 'info' = 'info', confirmText?: string, onConfirm?: () => void) => {
+    setAlertState({ isOpen: true, title, message, type, confirmText, onConfirm });
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setAlertState({ isOpen: true, title, message, type: 'warning', confirmText: 'Да', cancelText: 'Отмена', onConfirm });
+  };
+
   const isDark = (() => {
     const bg = theme.bgColor;
     if (!bg || bg === '#ffffff') return false;
@@ -525,30 +545,40 @@ export default function MyBookingsPage() {
     fetchBookings();
   }, []);
 
-  // Отмена записи
-  const handleCancel = async (bookingId: string) => {
-    const telegramId = getTelegramId();
-    if (!telegramId) return;
+  // Отмена записи с подтверждением
+  const handleCancel = (bookingId: string) => {
+    showConfirm(
+      'Отменить запись?',
+      'Вы уверены, что хотите отменить эту запись?',
+      async () => {
+        const telegramId = getTelegramId();
+        if (!telegramId) return;
 
-    setCancelling(bookingId);
-    try {
-      const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/cancel`, {
-        method: 'PATCH',
-        headers: { 'x-telegram-id': String(telegramId) },
-      });
+        setCancelling(bookingId);
+        try {
+          const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/cancel`, {
+            method: 'PATCH',
+            headers: { 'x-telegram-id': String(telegramId) },
+          });
 
-      if (res.ok) {
-        const cancelled = upcoming.find(b => b.id === bookingId);
-        if (cancelled) {
-          setUpcoming(prev => prev.filter(b => b.id !== bookingId));
-          setPast(prev => [{ ...cancelled, status: 'cancelled' }, ...prev]);
+          if (res.ok) {
+            const cancelled = upcoming.find(b => b.id === bookingId);
+            if (cancelled) {
+              setUpcoming(prev => prev.filter(b => b.id !== bookingId));
+              setPast(prev => [{ ...cancelled, status: 'cancelled' }, ...prev]);
+            }
+            showAlert('Запись отменена', 'Ваша запись была успешно отменена', 'success');
+          } else {
+            showAlert('Ошибка', 'Не удалось отменить запись', 'error');
+          }
+        } catch (err) {
+          console.error('Failed to cancel booking:', err);
+          showAlert('Ошибка', 'Произошла ошибка при отмене записи', 'error');
+        } finally {
+          setCancelling(null);
         }
       }
-    } catch (err) {
-      console.error('Failed to cancel booking:', err);
-    } finally {
-      setCancelling(null);
-    }
+    );
   };
 
   // Перенос записи - сначала получаем актуальные данные
@@ -569,7 +599,7 @@ export default function MyBookingsPage() {
       const currentBooking = allBookings.find((b: Booking) => b.id === rescheduleBooking.id);
       
       if (!currentBooking) {
-        alert('Запись не найдена. Возможно, она была удалена или отменена.');
+        showAlert('Запись не найдена', 'Возможно, она была удалена или отменена', 'error');
         setRescheduleBooking(null);
         setRescheduling(false);
         return;
@@ -589,13 +619,14 @@ export default function MyBookingsPage() {
         // Обновляем запись в списке
         setUpcoming(prev => prev.map(b => b.id === updated.id ? updated : b));
         setRescheduleBooking(null);
+        showAlert('Запись перенесена', 'Ваша запись успешно перенесена на другую дату', 'success');
       } else {
         const err = await res.json();
-        alert(err.error || 'Не удалось перенести запись');
+        showAlert('Ошибка', err.error || 'Не удалось перенести запись', 'error');
       }
     } catch (err) {
       console.error('Failed to reschedule:', err);
-      alert('Ошибка при переносе записи');
+      showAlert('Ошибка', 'Произошла ошибка при переносе записи', 'error');
     } finally {
       setRescheduling(false);
     }
@@ -729,6 +760,18 @@ export default function MyBookingsPage() {
           saving={rescheduling}
         />
       )}
+
+      {/* Кастомный Alert */}
+      <Alert
+        isOpen={alertState.isOpen}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        confirmText={alertState.confirmText}
+        cancelText={alertState.cancelText}
+        onConfirm={alertState.onConfirm}
+        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }

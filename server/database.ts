@@ -33,6 +33,7 @@ export const bookings = pgTable('bookings', {
   duration: integer('duration').notNull(),
   price: integer('price').notNull(),
   status: varchar('status', { length: 20 }).default('confirmed'),
+  cancelledBy: varchar('cancelled_by', { length: 20 }),
   clientName: varchar('client_name', { length: 255 }),
   clientPhone: varchar('client_phone', { length: 20 }),
   telegramId: integer('telegram_id'),
@@ -89,6 +90,7 @@ export interface Booking {
   duration: number;
   price: number;
   status: 'confirmed' | 'cancelled';
+  cancelledBy?: 'user' | 'admin';
   clientName?: string;
   clientPhone?: string;
   telegramId?: number;
