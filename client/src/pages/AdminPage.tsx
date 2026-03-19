@@ -463,7 +463,7 @@ export default function AdminPage() {
         </div>
 
         {activeTab === 'settings' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
             {/* Включение/выключение напоминаний */}
             <div 
               className="glass-card"
@@ -591,7 +591,7 @@ export default function AdminPage() {
         )}
 
         {activeTab === 'bookings' && (
-          <>
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
             {/* Статистика */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginBottom: '28px' }}>
           <div 
@@ -937,7 +937,7 @@ export default function AdminPage() {
             ))}
           </div>
         )}
-          </>
+      </div>
         )}
       </div>
 

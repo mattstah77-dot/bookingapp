@@ -31,6 +31,133 @@ function formatDateFull(dateStr: string): string {
   return `${date.getDate()} ${date.toLocaleDateString('ru-RU', { month: 'short' })} (${days[date.getDay()]})`;
 }
 
+// Получить записи пользователя по telegramId
+async function getUserBookings(telegramId: number, type: 'upcoming' | 'past') {
+  const allBookings = await db.getBookings();
+  const today = new Date().toISOString().split('T')[0];
+  
+  let userBookings = allBookings.filter(b => b.telegramId === telegramId);
+  
+  if (type === 'upcoming') {
+    // Предстоящие: дата >= сегодня
+    userBookings = userBookings
+      .filter(b => b.date >= today && b.status === 'confirmed')
+      .sort((a, b) => {
+        if (a.date !== b.date) return a.date.localeCompare(b.date);
+        return a.time.localeCompare(b.time);
+      });
+  } else {
+    // Прошедшие: дата < сегодня или отмененные
+    userBookings = userBookings
+      .filter(b => b.date < today || b.status === 'cancelled')
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        return b.time.localeCompare(a.time);
+      });
+  }
+  
+  return userBookings;
+}
+
+// Формирование текста записи для клиента
+function getUserBookingText(booking: any): string {
+  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
+  
+  // Вычисляем время окончания
+  const [hours, mins] = booking.time.split(':').map(Number);
+  const endMins = hours * 60 + mins + booking.duration;
+  const endHours = Math.floor(endMins / 60);
+  const endMinsRem = endMins % 60;
+  const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinsRem).padStart(2, '0')}`;
+  
+  let text = `📋 ${booking.serviceName}\n`;
+  text += `📅 ${formatDateFull(booking.date)}\n`;
+  text += `🕐 ${booking.time} - ${endTime}\n`;
+  text += `💰 ${booking.price} ₽\n`;
+  text += `📊 ${statusText}`;
+  
+  return text;
+}
+
+// Клавиатура выбора типа записей
+function getMyBookingsMenuKeyboard() {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [{ text: '📅 Предстоящие', callback_data: 'my_bookings_upcoming' }],
+        [{ text: '📆 Прошедшие', callback_data: 'my_bookings_past' }]
+      ]
+    }
+  };
+}
+
+// Клавиатура с записями клиента
+function getUserBookingsKeyboard(bookings: any[], type: 'upcoming' | 'past', page: number = 0) {
+  const PAGE_SIZE = 5;
+  const start = page * PAGE_SIZE;
+  const pageBookings = bookings.slice(start, start + PAGE_SIZE);
+  const totalPages = Math.ceil(bookings.length / PAGE_SIZE);
+  
+  const keyboard = [];
+  
+  // Кнопки записей
+  for (const b of pageBookings) {
+    const status = b.status === 'confirmed' ? '✅' : '❌';
+    const dayStr = formatDateFull(b.date);
+    const btnText = `${status} ${dayStr} ${b.time} | ${b.serviceName}`;
+    keyboard.push([{ text: btnText, callback_data: `my_booking_view_${type}_${b.id}_${page}` }]);
+  }
+  
+  // Пагинация
+  const navRow = [];
+  if (page > 0) {
+    navRow.push({ text: '◀ Назад', callback_data: `my_bookings_${type}_${page - 1}` });
+  }
+  if (page < totalPages - 1) {
+    navRow.push({ text: 'Далее ▶', callback_data: `my_bookings_${type}_${page + 1}` });
+  }
+  if (navRow.length > 0) {
+    keyboard.push(navRow);
+  }
+  
+  // Кнопки навигации
+  keyboard.push([
+    { text: '📅 Предстоящие', callback_data: 'my_bookings_upcoming_0' },
+    { text: '📆 Прошедшие', callback_data: 'my_bookings_past_0' }
+  ]);
+  keyboard.push([{ text: '🔙 В меню', callback_data: 'main_menu' }]);
+  
+  return { reply_markup: { inline_keyboard: keyboard } };
+}
+
+// Детальная карточка записи клиента
+function getUserBookingDetail(booking: any, type: 'upcoming' | 'past', page: number) {
+  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
+  
+  // Вычисляем время окончания
+  const [hours, mins] = booking.time.split(':').map(Number);
+  const endMins = hours * 60 + mins + booking.duration;
+  const endHours = Math.floor(endMins / 60);
+  const endMinsRem = endMins % 60;
+  const endTime = `${String(endHours).padStart(2, '0')}:${String(endMinsRem).padStart(2, '0')}`;
+  
+  let text = `📋 Запись #${booking.id}\n\n`;
+  text += `✂️ Услуга: ${booking.serviceName}\n`;
+  text += `📅 Дата: ${formatDateFull(booking.date)}\n`;
+  text += `🕐 Время: ${booking.time} - ${endTime}\n`;
+  text += `💰 Цена: ${booking.price} ₽\n`;
+  text += `📊 Статус: ${statusText}`;
+  
+  // Кнопка отмены только для предстоящих подтверждённых
+  const keyboard = [];
+  if (type === 'upcoming' && booking.status === 'confirmed') {
+    keyboard.push([{ text: '❌ Отменить запись', callback_data: `my_booking_cancel_${booking.id}` }]);
+  }
+  keyboard.push([{ text: '🔙 Назад', callback_data: `my_bookings_${type}_${page}` }]);
+  
+  return { text, keyboard: { reply_markup: { inline_keyboard: keyboard } } };
+}
+
 // Формирование клавиатуры со списком записей
 function getBookingsKeyboard(page: number, total: number, messageId?: number) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -157,37 +284,54 @@ export function createBot() {
     console.error('❌ Bot error:', err);
   });
 
-  // Команда /start
+  // Команда /start - главное меню на inline кнопках
   bot.command('start', async (ctx: Context) => {
     const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
     
-    const keyboard = new Keyboard()
-      .text('📋 Мои записи').row()
-      .text('✂️ Записаться');
-    
     await ctx.reply(
       'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
-      { reply_markup: keyboard }
-    );
-  });
-
-  // Обработка "Мои записи"
-  bot.hears('📋 Мои записи', async (ctx: Context) => {
-    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
-    
-    await ctx.reply(
-      'Ваши записи:',
       {
         reply_markup: {
           inline_keyboard: [
-            [{ text: '📋 Открыть мои записи', web_app: { url: `${serverUrl}/my-bookings` } }]
+            [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }],
+            [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
           ]
         }
       }
     );
   });
 
-  // Обработка "Записаться"
+  // Обработка "Мои записи" - показываем записи клиента
+  bot.hears('📋 Мои записи', async (ctx: Context) => {
+    const telegramId = ctx.from?.id;
+    if (!telegramId) {
+      await ctx.reply('Не могу определить пользователя');
+      return;
+    }
+    
+    const upcoming = await getUserBookings(telegramId, 'upcoming');
+    const past = await getUserBookings(telegramId, 'past');
+    
+    if (upcoming.length === 0 && past.length === 0) {
+      await ctx.reply(
+        'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
+        getMyBookingsMenuKeyboard()
+      );
+      return;
+    }
+    
+    let text = '📋 Ваши записи\n\n';
+    if (upcoming.length > 0) {
+      text += `📅 Предстоящих: ${upcoming.length}\n`;
+    }
+    if (past.length > 0) {
+      text += `📆 Прошедших: ${past.length}`;
+    }
+    
+    await ctx.reply(text, getMyBookingsMenuKeyboard());
+  });
+
+  // Обработка "Записаться" - открывает web_app
   bot.hears('✂️ Записаться', async (ctx: Context) => {
     const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
     
@@ -254,7 +398,146 @@ export function createBot() {
     // Отвечаем на callback чтобы убрать "часики"
     await ctx.answerCallbackQuery();
     
-    // Меню админа
+    const telegramId = ctx.from?.id;
+    if (!telegramId) return;
+    
+    // ========== ГЛАВНОЕ МЕНЮ ==========
+    if (callbackData === 'main_menu') {
+      const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      await ctx.editMessageText(
+        'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }],
+              [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+    
+    // ========== МОИ ЗАПИСИ - МЕНЮ ==========
+    if (callbackData === 'my_bookings_menu') {
+      const upcoming = await getUserBookings(telegramId, 'upcoming');
+      const past = await getUserBookings(telegramId, 'past');
+      
+      if (upcoming.length === 0 && past.length === 0) {
+        await ctx.editMessageText(
+          'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
+          getMyBookingsMenuKeyboard()
+        );
+        return;
+      }
+      
+      let text = '📋 Ваши записи\n\n';
+      if (upcoming.length > 0) {
+        text += `📅 Предстоящих: ${upcoming.length}\n`;
+      }
+      if (past.length > 0) {
+        text += `📆 Прошедших: ${past.length}`;
+      }
+      
+      await ctx.editMessageText(text, getMyBookingsMenuKeyboard());
+      return;
+    }
+    
+    // ========== ПРЕДСТОЯЩИЕ ЗАПИСИ ==========
+    if (callbackData.startsWith('my_bookings_upcoming')) {
+      const parts = callbackData.split('_');
+      const page = parseInt(parts[parts.length - 1]) || 0;
+      const bookings = await getUserBookings(telegramId, 'upcoming');
+      
+      if (bookings.length === 0) {
+        await ctx.editMessageText(
+          '📅 У вас нет предстоящих записей.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📆 Прошедшие', callback_data: 'my_bookings_past_0' }],
+                [{ text: '🔙 В меню', callback_data: 'main_menu' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+      
+      let text = `📅 Предстоящие записи (${bookings.length})\n\n`;
+      text += 'Выберите запись для подробной информации:';
+      
+      await ctx.editMessageText(text, getUserBookingsKeyboard(bookings, 'upcoming', page));
+      return;
+    }
+    
+    // ========== ПРОШЕДШИЕ ЗАПИСИ ==========
+    if (callbackData.startsWith('my_bookings_past')) {
+      const parts = callbackData.split('_');
+      const page = parseInt(parts[parts.length - 1]) || 0;
+      const bookings = await getUserBookings(telegramId, 'past');
+      
+      if (bookings.length === 0) {
+        await ctx.editMessageText(
+          '📆 У вас нет прошедших записей.',
+          {
+            reply_markup: {
+              inline_keyboard: [
+                [{ text: '📅 Предстоящие', callback_data: 'my_bookings_upcoming_0' }],
+                [{ text: '🔙 В меню', callback_data: 'main_menu' }]
+              ]
+            }
+          }
+        );
+        return;
+      }
+      
+      let text = `📆 Прошедшие записи (${bookings.length})\n\n`;
+      text += 'Выберите запись для подробной информации:';
+      
+      await ctx.editMessageText(text, getUserBookingsKeyboard(bookings, 'past', page));
+      return;
+    }
+    
+    // ========== ПРОСМОТР ЗАПИСИ КЛИЕНТА ==========
+    if (callbackData.startsWith('my_booking_view_')) {
+      // Формат: my_booking_view_upcoming_123_0 или my_booking_view_past_123_0
+      const parts = callbackData.split('_');
+      const type = parts[3] as 'upcoming' | 'past';
+      const bookingId = parseInt(parts[4]);
+      const page = parseInt(parts[5]) || 0;
+      
+      const allBookings = await db.getBookings();
+      const booking = allBookings.find(b => b.id === bookingId);
+      
+      if (!booking) {
+        await ctx.editMessageText('Запись не найдена', {
+          reply_markup: { inline_keyboard: [[{ text: '🔙 Назад', callback_data: `my_bookings_${type}_${page}` }]] }
+        });
+        return;
+      }
+      
+      const { text, keyboard } = getUserBookingDetail(booking, type, page);
+      await ctx.editMessageText(text, keyboard);
+      return;
+    }
+    
+    // ========== ОТМЕНА ЗАПИСИ КЛИЕНТОМ ==========
+    if (callbackData.startsWith('my_booking_cancel_')) {
+      const bookingId = parseInt(callbackData.replace('my_booking_cancel_', ''));
+      await db.updateBookingStatus(bookingId, 'cancelled');
+      
+      const allBookings = await db.getBookings();
+      const booking = allBookings.find(b => b.id === bookingId);
+      
+      if (booking) {
+        const { text, keyboard } = getUserBookingDetail(booking, 'upcoming', 0);
+        await ctx.editMessageText(text + '\n\n❌ Запись отменена', keyboard);
+      }
+      return;
+    }
+    
+    // ========== МЕНЮ АДМИНА ==========
     if (callbackData === 'admin_menu') {
       const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
       await ctx.editMessageText(
