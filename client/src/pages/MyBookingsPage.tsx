@@ -551,7 +551,7 @@ export default function MyBookingsPage() {
     }
   };
 
-  // Перенос записи
+  // Перенос записи - сначала получаем актуальные данные
   const handleReschedule = async (date: string, time: string) => {
     if (!rescheduleBooking) return;
     
@@ -560,6 +560,21 @@ export default function MyBookingsPage() {
 
     setRescheduling(true);
     try {
+      // Сначала получаем актуальные данные о записи
+      const resBookings = await fetch(`${API_BASE}/my-bookings`, {
+        headers: { 'x-telegram-id': String(telegramId) },
+      });
+      const data = await resBookings.json();
+      const allBookings = [...(data.upcoming || []), ...(data.past || [])];
+      const currentBooking = allBookings.find((b: Booking) => b.id === rescheduleBooking.id);
+      
+      if (!currentBooking) {
+        alert('Запись не найдена. Возможно, она была удалена или отменена.');
+        setRescheduleBooking(null);
+        setRescheduling(false);
+        return;
+      }
+
       const res = await fetch(`${API_BASE}/my-bookings/${rescheduleBooking.id}/reschedule`, {
         method: 'PATCH',
         headers: { 

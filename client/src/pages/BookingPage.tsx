@@ -555,7 +555,7 @@ export default function BookingPage() {
         />
       )}
 
-      {/* Кнопка админ-панели */}
+      {/* Кнопка админ-панели - полупрозрачная */}
       {isAdmin && (
         <div style={{ 
           position: 'fixed', 
@@ -573,14 +573,18 @@ export default function BookingPage() {
               height: '44px',
               borderRadius: '16px',
               background: isDark 
-                ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
-                : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                ? 'rgba(35,35,35,0.6)' 
+                : 'rgba(255,255,255,0.6)',
               backdropFilter: 'blur(16px)',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-              boxShadow: isDark ? '0 4px 12px rgba(0,0,0,0.4)' : '0 4px 12px rgba(0,0,0,0.1)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
               color: theme.hintColor,
               textDecoration: 'none',
+              opacity: 0.7,
+              transition: 'opacity 0.2s ease',
             }}
+            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
           >
             <Settings size={20} />
           </a>
