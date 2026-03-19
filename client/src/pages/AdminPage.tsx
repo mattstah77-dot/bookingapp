@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
-  CalendarDays, Users, ClipboardList, Scissors, Bell, Clock
+  CalendarDays, Users, ClipboardList, Scissors, Bell, Clock,
+  Plus, Edit2, Eye, EyeOff
 } from 'lucide-react';
 
 interface ReminderSettings {
@@ -23,6 +24,18 @@ interface Booking {
   clientName?: string;
   clientPhone?: string;
   createdAt: string;
+}
+
+interface Service {
+  id: number;
+  name: string;
+  description: string;
+  duration: number;
+  price: number;
+  category?: string;
+  photos?: string[];
+  sortOrder: number;
+  isActive: boolean;
 }
 
 const API_BASE = '/api';
@@ -56,6 +69,7 @@ function getAuthHeaders(): HeadersInit {
 export default function AdminPage() {
   const theme = useTelegramTheme();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<'all' | 'confirmed' | 'cancelled'>('all');
@@ -64,13 +78,15 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'settings'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'services' | 'settings'>('bookings');
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
     enabled: true,
     defaultMinutesBefore: 120,
     customReminders: [],
   });
   const [savingSettings, setSavingSettings] = useState(false);
+  const [editingService, setEditingService] = useState<Service | null>(null);
+  const [serviceForm, setServiceForm] = useState({ name: '', description: '', duration: 30, price: 1000 });
 
   // Функция возврата на главную
   const goBack = () => {
@@ -170,6 +186,89 @@ export default function AdminPage() {
       fetchSettings();
     }
   }, [activeTab]);
+
+  // Загрузка услуг
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const res = await fetch(`${API_BASE}/services?includeInactive=true`, { headers: getAuthHeaders() });
+        const data = await res.json();
+        setServices(data);
+      } catch (err) {
+        console.error('Failed to fetch services:', err);
+      }
+    };
+    
+    if (activeTab === 'services') {
+      fetchServices();
+    }
+  }, [activeTab]);
+
+  // Сохранить услугу
+  const handleSaveService = async () => {
+    if (!serviceForm.name.trim()) {
+      alert('Введите название услуги');
+      return;
+    }
+    
+    try {
+      if (editingService) {
+        // Обновить
+        await fetch(`${API_BASE}/services/${editingService.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(serviceForm),
+        });
+      } else {
+        // Создать
+        await fetch(`${API_BASE}/services`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(serviceForm),
+        });
+      }
+      
+      // Перезагрузить список
+      const res = await fetch(`${API_BASE}/services?includeInactive=true`, { headers: getAuthHeaders() });
+      const data = await res.json();
+      setServices(data);
+      setEditingService(null);
+      setServiceForm({ name: '', description: '', duration: 30, price: 1000 });
+    } catch (err) {
+      console.error('Failed to save service:', err);
+      alert('Ошибка сохранения');
+    }
+  };
+
+  // Переключить видимость услуги
+  const handleToggleService = async (id: number, currentActive: boolean) => {
+    try {
+      await fetch(`${API_BASE}/services/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ isActive: !currentActive }),
+      });
+      
+      setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: !currentActive } : s));
+    } catch (err) {
+      console.error('Failed to toggle service:', err);
+    }
+  };
+
+  // Удалить услугу
+  const handleDeleteService = async (id: number) => {
+    if (!confirm('Удалить эту услугу?')) return;
+    
+    try {
+      await fetch(`${API_BASE}/services/${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      setServices(prev => prev.filter(s => s.id !== id));
+    } catch (err) {
+      console.error('Failed to delete service:', err);
+    }
+  };
 
   const filteredBookings = useMemo(() => {
     if (filter === 'all') return bookings;
@@ -414,7 +513,7 @@ export default function AdminPage() {
             Записи
           </button>
           <button
-            onClick={() => window.location.href = '/admin/services'}
+            onClick={() => setActiveTab('services')}
             style={{ 
               flex: 1,
               display: 'flex',
@@ -426,9 +525,13 @@ export default function AdminPage() {
               fontSize: '14px',
               fontWeight: 600,
               transition: 'all 0.3s ease',
-              background: 'transparent',
-              color: theme.hintColor,
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+              background: activeTab === 'services' 
+                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                : 'transparent',
+              color: activeTab === 'services' 
+                ? theme.buttonTextColor 
+                : theme.hintColor,
+              border: `1px solid ${activeTab === 'services' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
               cursor: 'pointer',
             }}
           >
@@ -588,6 +691,258 @@ export default function AdminPage() {
             >
               {savingSettings ? 'Сохранение...' : 'Сохранить настройки'}
             </button>
+          </div>
+        )}
+
+        {activeTab === 'services' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            {/* Кнопка добавления */}
+            <button
+              onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); }}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '8px',
+                width: '100%',
+                padding: '16px',
+                borderRadius: '16px',
+                border: `1px dashed ${theme.buttonColor}50`,
+                background: 'transparent',
+                color: theme.buttonColor,
+                fontSize: '15px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                marginBottom: '20px',
+              }}
+            >
+              <Plus size={20} />
+              Добавить услугу
+            </button>
+
+            {/* Форма редактирования */}
+            {(editingService || serviceForm.name) && (
+              <div
+                className="glass-card"
+                style={{ 
+                  borderRadius: '20px',
+                  padding: '24px',
+                  marginBottom: '20px',
+                  background: isDark 
+                    ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                    : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                  backdropFilter: 'blur(20px)',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                }}
+              >
+                <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>
+                  {editingService ? 'Редактировать услугу' : 'Новая услуга'}
+                </h3>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <input
+                    type="text"
+                    value={serviceForm.name}
+                    onChange={(e) => setServiceForm(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Название"
+                    style={{ 
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                      background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                      color: theme.textColor,
+                      fontSize: '15px',
+                      outline: 'none',
+                    }}
+                  />
+                  
+                  <input
+                    type="text"
+                    value={serviceForm.description}
+                    onChange={(e) => setServiceForm(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Описание"
+                    style={{ 
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '12px',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                      background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                      color: theme.textColor,
+                      fontSize: '15px',
+                      outline: 'none',
+                    }}
+                  />
+                  
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ color: theme.hintColor, fontSize: '12px', marginBottom: '6px', display: 'block' }}>
+                        Длительность (мин)
+                      </label>
+                      <input
+                        type="number"
+                        value={serviceForm.duration}
+                        onChange={(e) => setServiceForm(prev => ({ ...prev, duration: parseInt(e.target.value) || 30 }))}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                          background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                          color: theme.textColor,
+                          fontSize: '15px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ color: theme.hintColor, fontSize: '12px', marginBottom: '6px', display: 'block' }}>
+                        Цена (₽)
+                      </label>
+                      <input
+                        type="number"
+                        value={serviceForm.price}
+                        onChange={(e) => setServiceForm(prev => ({ ...prev, price: parseInt(e.target.value) || 0 }))}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          borderRadius: '12px',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                          background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                          color: theme.textColor,
+                          fontSize: '15px',
+                          outline: 'none',
+                        }}
+                      />
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
+                    <button
+                      onClick={handleSaveService}
+                      style={{ 
+                        flex: 1,
+                        padding: '14px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        background: `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`,
+                        color: theme.buttonTextColor,
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Сохранить
+                    </button>
+                    <button
+                      onClick={() => { setEditingService(null); setServiceForm({ name: '', description: '', duration: 30, price: 1000 }); }}
+                      style={{ 
+                        padding: '14px 20px',
+                        borderRadius: '12px',
+                        border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                        background: 'transparent',
+                        color: theme.hintColor,
+                        fontSize: '14px',
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                      }}
+                    >
+                      Отмена
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Список услуг */}
+            {services.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '48px 0', color: theme.hintColor }}>
+                Нет услуг
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {services.map(service => (
+                  <div
+                    key={service.id}
+                    className="glass-card"
+                    style={{ 
+                      borderRadius: '18px',
+                      padding: '18px',
+                      background: isDark 
+                        ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                        : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                      backdropFilter: 'blur(20px)',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                      opacity: service.isActive ? 1 : 0.5,
+                      transition: 'opacity 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 700, color: theme.textColor, fontSize: '16px', marginBottom: '4px' }}>
+                          {service.name}
+                        </div>
+                        {service.description && (
+                          <div style={{ fontSize: '13px', color: theme.hintColor, marginBottom: '8px' }}>
+                            {service.description}
+                          </div>
+                        )}
+                        <div style={{ display: 'flex', gap: '16px', fontSize: '13px' }}>
+                          <span style={{ color: theme.hintColor }}>
+                            🕐 {service.duration} мин
+                          </span>
+                          <span style={{ color: theme.buttonColor, fontWeight: 600 }}>
+                            {service.price} ₽
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div style={{ display: 'flex', gap: '6px' }}>
+                        <button
+                          onClick={() => handleToggleService(service.id, service.isActive)}
+                          title={service.isActive ? 'Скрыть' : 'Показать'}
+                          style={{
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: service.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(255,255,255,0.1)',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {service.isActive ? <Eye size={18} style={{ color: '#22c55e' }} /> : <EyeOff size={18} style={{ color: theme.hintColor }} />}
+                        </button>
+                        <button
+                          onClick={() => { setEditingService(service); setServiceForm({ name: service.name, description: service.description || '', duration: service.duration, price: service.price }); }}
+                          title="Редактировать"
+                          style={{
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: 'rgba(59,130,246,0.15)',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Edit2 size={18} style={{ color: '#3b82f6' }} />
+                        </button>
+                        <button
+                          onClick={() => handleDeleteService(service.id)}
+                          title="Удалить"
+                          style={{
+                            padding: '10px',
+                            borderRadius: '10px',
+                            background: 'rgba(239,68,68,0.15)',
+                            border: 'none',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <Trash2 size={18} style={{ color: '#ef4444' }} />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
