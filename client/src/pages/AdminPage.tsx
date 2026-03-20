@@ -238,8 +238,10 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchServices = async () => {
       try {
-        const res = await fetch(`${API_BASE}/services?includeInactive=true`, { headers: getAuthHeaders() });
+        const res = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
+        console.log('[FETCH SERVICES] status:', res.status);
         const data = await res.json();
+        console.log('[FETCH SERVICES] data:', data);
         setServices(data);
       } catch (err) {
         console.error('Failed to fetch services:', err);
@@ -254,18 +256,23 @@ export default function AdminPage() {
   // Переключить видимость услуги
   const handleToggleService = async (id: number, currentActive: boolean) => {
     try {
-      const res = await fetch(`${API_BASE}/services/${id}`, {
+      const newActive = !currentActive;
+      const res = await fetch(`${API_BASE}/admin/services/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
-        body: JSON.stringify({ isActive: !currentActive }),
+        body: JSON.stringify({ isActive: newActive }),
       });
-      if (!res.ok) throw new Error('Failed to toggle');
+      console.log('[TOGGLE] status:', res.status);
+      const data = await res.json();
+      console.log('[TOGGLE] response:', data);
       
-      setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: !currentActive } : s));
-      showAlert('Сохранено', !currentActive ? 'Услуга теперь видна' : 'Услуга скрыта', 'success');
-    } catch (err) {
+      if (!res.ok) throw new Error(data.error || 'Failed to toggle');
+      
+      setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: newActive } : s));
+      showAlert('Сохранено', newActive ? 'Услуга теперь видна' : 'Услуга скрыта', 'success');
+    } catch (err: any) {
       console.error('Failed to toggle service:', err);
-      showAlert('Ошибка', 'Не удалось изменить видимость', 'error');
+      showAlert('Ошибка', err.message || 'Не удалось изменить видимость', 'error');
     }
   };
 
@@ -276,17 +283,21 @@ export default function AdminPage() {
       'Эта услуга будет удалена безвозвратно.',
       async () => {
         try {
-          const res = await fetch(`${API_BASE}/services/${id}`, {
+          const res = await fetch(`${API_BASE}/admin/services/${id}`, {
             method: 'DELETE',
             headers: getAuthHeaders(),
           });
-          if (!res.ok) throw new Error('Failed to delete');
+          console.log('[DELETE] status:', res.status);
+          const data = await res.json();
+          console.log('[DELETE] response:', data);
+          
+          if (!res.ok) throw new Error(data.error || 'Failed to delete');
           
           setServices(prev => prev.filter(s => s.id !== id));
           showAlert('Удалено', 'Услуга удалена', 'success');
-        } catch (err) {
+        } catch (err: any) {
           console.error('Failed to delete service:', err);
-          showAlert('Ошибка', 'Не удалось удалить услугу', 'error');
+          showAlert('Ошибка', err.message || 'Не удалось удалить услугу', 'error');
         }
       }
     );
@@ -306,8 +317,8 @@ export default function AdminPage() {
       // Сохраняем новый порядок на сервере
       try {
         const orderedIds = newServices.map(s => s.id);
-        await fetch(`${API_BASE}/services/reorder`, {
-          method: 'PUT',
+        await fetch(`${API_BASE}/admin/services/reorder`, {
+          method: 'PATCH',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify({ orderedIds }),
         });
@@ -328,38 +339,46 @@ export default function AdminPage() {
     if (!editModalService) {
       // Новая услуга
       try {
-        const res = await fetch(`${API_BASE}/services`, {
+        const res = await fetch(`${API_BASE}/admin/services`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(serviceData),
         });
-        if (!res.ok) throw new Error('Failed to create');
+        console.log('[CREATE] status:', res.status);
+        const data = await res.json();
+        console.log('[CREATE] response:', data);
         
-        const res2 = await fetch(`${API_BASE}/services?includeInactive=true`, { headers: getAuthHeaders() });
-        const data = await res2.json();
-        setServices(data);
+        if (!res.ok) throw new Error(data.error || 'Failed to create');
+        
+        const res2 = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
+        const data2 = await res2.json();
+        setServices(data2);
         showAlert('Сохранено', 'Услуга создана', 'success');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to create service:', err);
-        showAlert('Ошибка', 'Не удалось создать услугу', 'error');
+        showAlert('Ошибка', err.message || 'Не удалось создать услугу', 'error');
       }
     } else {
       // Обновить услугу
       try {
-        const res = await fetch(`${API_BASE}/services/${editModalService.id}`, {
+        const res = await fetch(`${API_BASE}/admin/services/${editModalService.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(serviceData),
         });
-        if (!res.ok) throw new Error('Failed to update');
+        console.log('[UPDATE] status:', res.status);
+        const data = await res.json();
+        console.log('[UPDATE] response:', data);
         
-        const res2 = await fetch(`${API_BASE}/services?includeInactive=true`, { headers: getAuthHeaders() });
-        const data = await res2.json();
-        setServices(data);
+        if (!res.ok) throw new Error(data.error || 'Failed to update');
+        
+        const res2 = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
+        const data2 = await res2.json();
+        setServices(data2);
         showAlert('Сохранено', 'Услуга обновлена', 'success');
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to update service:', err);
-        showAlert('Ошибка', 'Не удалось обновить услугу', 'error');
+        showAlert('Ошибка', err.message || 'Не удалось обновить услугу', 'error');
       }
     }
     
