@@ -89,7 +89,7 @@ export interface Booking {
   time: string;
   duration: number;
   price: number;
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'cancelled_by_user' | 'cancelled_by_admin' | 'completed' | 'no_show';
   cancelledBy?: 'user' | 'admin';
   clientName?: string;
   clientPhone?: string;
@@ -186,6 +186,14 @@ class PostgresDatabase {
       CREATE INDEX IF NOT EXISTS idx_bookings_date ON bookings(date);
       CREATE INDEX IF NOT EXISTS idx_bookings_telegram_id ON bookings(telegram_id);
       CREATE INDEX IF NOT EXISTS idx_reminders_scheduled ON reminders(scheduled_for, sent);
+
+      -- Add cancelled_by column if not exists
+      DO $$ 
+      BEGIN 
+        IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'bookings' AND column_name = 'cancelled_by') THEN
+          ALTER TABLE bookings ADD COLUMN cancelled_by VARCHAR(20);
+        END IF;
+      END $$;
     `);
 
     const servicesCount = await this.pool.query('SELECT COUNT(*) FROM services');
@@ -309,9 +317,17 @@ class PostgresDatabase {
   }
 
   async updateBookingStatus(id: number, status: 'confirmed' | 'cancelled' | 'cancelled_by_user' | 'cancelled_by_admin' | 'completed' | 'no_show'): Promise<Booking | null> {
+    // Определяем кто отменил
+    let cancelledBy: string | undefined;
+    if (status === 'cancelled_by_user') {
+      cancelledBy = 'user';
+    } else if (status === 'cancelled_by_admin') {
+      cancelledBy = 'admin';
+    }
+    
     const result = await this.pool.query(
-      'UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *',
-      [status, id]
+      'UPDATE bookings SET status = $1, cancelled_by = $2 WHERE id = $3 RETURNING *',
+      [status, cancelledBy || null, id]
     );
     return result.rows[0] || null;
   }
