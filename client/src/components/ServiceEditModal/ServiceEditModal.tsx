@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import type { Service } from '../../types/booking';
+import { Alert } from '../Alert/Alert';
 import { X, Plus, ChevronLeft, ChevronRight, ZoomIn, Upload } from 'lucide-react';
 
 interface ServiceEditModalProps {
@@ -23,6 +24,18 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
   const [photos, setPhotos] = useState<string[]>(service?.photos || []);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [zoomPhoto, setZoomPhoto] = useState<string | null>(null);
+
+  // Alert state
+  const [alertState, setAlertState] = useState<{
+    isOpen: boolean;
+    title: string;
+    message?: string;
+    type: 'success' | 'error' | 'warning' | 'info';
+  }>({ isOpen: false, title: '', type: 'info' });
+
+  const showAlert = (title: string, message?: string, type: 'success' | 'error' | 'warning' | 'info' = 'info') => {
+    setAlertState({ isOpen: true, title, message, type });
+  };
 
   const isDark = (() => {
     const bg = theme.bgColor;
@@ -49,7 +62,7 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
     Array.from(files).forEach(file => {
       if (photos.length >= MAX_PHOTOS) return;
       if (file.size > MAX_PHOTO_SIZE) {
-        alert(`Файл слишком большой. Максимальный размер: 500KB`);
+        showAlert('Файл слишком большой', 'Максимальный размер: 500KB', 'error');
         return;
       }
 
@@ -73,15 +86,15 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
 
   const handleSave = () => {
     if (!name.trim()) {
-      alert('Введите название услуги');
+      showAlert('Ошибка', 'Введите название услуги', 'error');
       return;
     }
     if (duration < 1) {
-      alert('Укажите длительность');
+      showAlert('Ошибка', 'Укажите длительность', 'error');
       return;
     }
     if (price < 1) {
-      alert('Укажите цену');
+      showAlert('Ошибка', 'Укажите цену', 'error');
       return;
     }
 
@@ -539,6 +552,15 @@ export function ServiceEditModal({ service, onSave, onClose }: ServiceEditModalP
           </button>
         </div>
       )}
+
+      {/* Кастомный Alert */}
+      <Alert
+        isOpen={alertState.isOpen}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+        onClose={() => setAlertState(prev => ({ ...prev, isOpen: false }))}
+      />
     </>
   );
 }

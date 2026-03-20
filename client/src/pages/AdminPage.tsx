@@ -471,10 +471,13 @@ export default function AdminPage() {
       });
       
       if (res.ok) {
-        alert('Настройки сохранены!');
+        showAlert('Сохранено', 'Настройки напоминаний сохранены', 'success');
+      } else {
+        showAlert('Ошибка', 'Не удалось сохранить настройки', 'error');
       }
     } catch (err) {
       console.error('Failed to save settings:', err);
+      showAlert('Ошибка', 'Не удалось сохранить настройки', 'error');
     } finally {
       setSavingSettings(false);
     }
