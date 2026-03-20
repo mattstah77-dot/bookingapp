@@ -633,14 +633,12 @@ export default function MyBookingsPage() {
       console.log('[RESCHEDULE] response data:', resData);
 
       if (res.ok) {
-        const updated = await res.json();
-        // Обновляем запись в списке
-        setUpcoming(prev => prev.map(b => String(b.id) === bookingId ? updated : b));
+        // Обновляем запись в списке сразу (сервер возвращает обновлённую запись)
+        setUpcoming(prev => prev.map(b => String(b.id) === bookingId ? resData : b));
         setRescheduleBooking(null);
         showAlert('Запись перенесена', 'Ваша запись успешно перенесена на другую дату', 'success');
       } else {
-        const err = await res.json();
-        showAlert('Ошибка', err.error || 'Не удалось перенести запись', 'error');
+        showAlert('Ошибка', resData.error || 'Не удалось перенести запись', 'error');
       }
     } catch (err) {
       console.error('Failed to reschedule:', err);
