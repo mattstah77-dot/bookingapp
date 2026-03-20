@@ -18,7 +18,7 @@ export interface Booking {
   time: string; // HH:MM
   duration: number;
   price: number;
-  status: 'confirmed' | 'cancelled';
+  status: 'confirmed' | 'cancelled' | 'cancelled_by_user' | 'cancelled_by_admin' | 'completed' | 'no_show';
   clientName?: string;
   clientPhone?: string;
   telegramId?: number;

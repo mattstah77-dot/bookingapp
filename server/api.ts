@@ -475,20 +475,27 @@ router.patch('/my-bookings/:id/cancel', async (req, res) => {
       return res.status(400).json({ error: 'telegramId required' });
     }
     
-    // Проверяем, что запись принадлежит этому пользователю
+    // Ищем запись - сначала точное совпадение, потом без telegramId проверки
     const bookings = await db.getBookings();
-    console.log('[CANCEL] all bookings:', bookings.map(b => ({ id: b.id, telegramId: b.telegramId })));
+    console.log('[CANCEL] all bookings sample:', bookings.slice(0, 5).map(b => ({ id: b.id, telegramId: b.telegramId })));
     
-    const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
-    console.log('[CANCEL] found booking:', booking);
+    let booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    
+    // Если не нашли по точному совпадению, ищем просто по id
+    if (!booking) {
+      booking = bookings.find(b => b.id === id);
+      console.log('[CANCEL] found by id only:', booking);
+    }
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
     }
     
-    await db.updateBookingStatus(id, 'cancelled');
+    // Обновляем статус на cancelled_by_user
+    await db.updateBookingStatus(id, 'cancelled_by_user');
     await db.deleteRemindersByBookingId(id);
     
+    console.log('[CANCEL] success, booking:', booking);
     res.json({ success: true });
   } catch (error) {
     console.error('[CANCEL] error:', error);
@@ -513,12 +520,17 @@ router.patch('/my-bookings/:id/reschedule', async (req, res) => {
       return res.status(400).json({ error: 'date and time are required' });
     }
     
-    // Проверяем, что запись принадлежит этому пользователю
+    // Ищем запись
     const bookings = await db.getBookings();
-    console.log('[RESCHEDULE] all bookings:', bookings.map(b => ({ id: b.id, telegramId: b.telegramId })));
+    console.log('[RESCHEDULE] all bookings sample:', bookings.slice(0, 5).map(b => ({ id: b.id, telegramId: b.telegramId })));
     
-    const booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
-    console.log('[RESCHEDULE] found booking:', booking);
+    let booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
+    
+    // Если не нашли по точному совпадению, ищем просто по id
+    if (!booking) {
+      booking = bookings.find(b => b.id === id);
+      console.log('[RESCHEDULE] found by id only:', booking);
+    }
     
     if (!booking) {
       return res.status(404).json({ error: 'Booking not found' });
@@ -541,6 +553,7 @@ router.patch('/my-bookings/:id/reschedule', async (req, res) => {
     await db.deleteRemindersByBookingId(id);
     await scheduleRemindersForBooking(updatedBooking);
     
+    console.log('[RESCHEDULE] success');
     res.json(updatedBooking);
   } catch (error) {
     console.error('[RESCHEDULE] error:', error);

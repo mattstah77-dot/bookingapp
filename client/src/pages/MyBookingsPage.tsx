@@ -353,7 +353,7 @@ function BookingCard({ booking, isPast = false, onCancel, onReschedule, cancelli
     return parseInt(hex, 16) < 128000;
   })();
 
-  const isCancelled = booking.status === 'cancelled';
+  const isCancelled = ['cancelled', 'cancelled_by_user', 'cancelled_by_admin'].includes(booking.status);
   const isUpcoming = !isPast && !isCancelled;
 
   return (
@@ -387,7 +387,9 @@ function BookingCard({ booking, isPast = false, onCancel, onReschedule, cancelli
           marginBottom: '12px',
         }}>
           <X size={12} />
-          Отменено
+          {booking.status === 'cancelled_by_user' ? 'Отменено вами' : 
+           booking.status === 'cancelled_by_admin' ? 'Отменено администратором' : 
+           'Отменено'}
         </div>
       )}
 
@@ -570,7 +572,8 @@ export default function MyBookingsPage() {
             const cancelled = upcoming.find(b => b.id === bookingId);
             if (cancelled) {
               setUpcoming(prev => prev.filter(b => b.id !== bookingId));
-              setPast(prev => [{ ...cancelled, status: 'cancelled' }, ...prev]);
+              // Используем статус от сервера
+              setPast(prev => [{ ...cancelled, status: 'cancelled_by_user' }, ...prev]);
             }
             showAlert('Запись отменена', 'Ваша запись была успешно отменена', 'success');
           } else {

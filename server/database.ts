@@ -308,7 +308,7 @@ class PostgresDatabase {
     return result.rows[0];
   }
 
-  async updateBookingStatus(id: number, status: 'confirmed' | 'cancelled'): Promise<Booking | null> {
+  async updateBookingStatus(id: number, status: 'confirmed' | 'cancelled' | 'cancelled_by_user' | 'cancelled_by_admin' | 'completed' | 'no_show'): Promise<Booking | null> {
     const result = await this.pool.query(
       'UPDATE bookings SET status = $1 WHERE id = $2 RETURNING *',
       [status, id]
@@ -447,7 +447,7 @@ class PostgresDatabase {
   async getUserPastBookings(telegramId: number): Promise<Booking[]> {
     const today = new Date().toISOString().split('T')[0];
     const result = await this.pool.query(
-      `SELECT * FROM bookings WHERE telegram_id = $1 AND (date < $2 OR status = 'cancelled') ORDER BY date DESC, time DESC`,
+      `SELECT * FROM bookings WHERE telegram_id = $1 AND (date < $2 OR status IN ('cancelled', 'cancelled_by_user', 'cancelled_by_admin', 'completed', 'no_show')) ORDER BY date DESC, time DESC`,
       [telegramId, today]
     );
     return result.rows;
