@@ -241,8 +241,16 @@ export default function AdminPage() {
         const res = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
         console.log('[FETCH SERVICES] status:', res.status);
         const data = await res.json();
-        console.log('[FETCH SERVICES] data:', data);
-        setServices(data);
+        console.log('[FETCH SERVICES] raw data:', data);
+        
+        // Нормализуем данные - сервер возвращает is_active, клиент ожидает isActive
+        const normalized = data.map((s: any) => ({
+          ...s,
+          isActive: s.isActive ?? s.is_active ?? true,
+        }));
+        console.log('[FETCH SERVICES] normalized:', normalized);
+        
+        setServices(normalized);
       } catch (err) {
         console.error('Failed to fetch services:', err);
       }
@@ -268,7 +276,8 @@ export default function AdminPage() {
       
       if (!res.ok) throw new Error(data.error || 'Failed to toggle');
       
-      setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: newActive } : s));
+      // Нормализуем данные после обновления
+      setServices(prev => prev.map(s => s.id === id ? { ...s, isActive: newActive, is_active: newActive } : s));
       showAlert('Сохранено', newActive ? 'Услуга теперь видна' : 'Услуга скрыта', 'success');
     } catch (err: any) {
       console.error('Failed to toggle service:', err);
