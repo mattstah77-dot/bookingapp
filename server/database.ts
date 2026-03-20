@@ -390,7 +390,14 @@ class PostgresDatabase {
     if (daySchedule.rows.length === 0) return [];
 
     const schedule = daySchedule.rows[0];
-    const bookings = await this.getBookingsByDate(date);
+    
+    // Получаем только подтверждённые брони
+    const result = await this.pool.query(
+      "SELECT * FROM bookings WHERE date = $1 AND status = 'confirmed'",
+      [date]
+    );
+    const bookings = result.rows;
+    
     const bufferTime = await this.getBufferTime();
 
     const slots: string[] = [];
@@ -447,7 +454,7 @@ class PostgresDatabase {
   async getUserPastBookings(telegramId: number): Promise<Booking[]> {
     const today = new Date().toISOString().split('T')[0];
     const result = await this.pool.query(
-      `SELECT * FROM bookings WHERE telegram_id = $1 AND (date < $2 OR status IN ('cancelled', 'cancelled_by_user', 'cancelled_by_admin', 'completed', 'no_show')) ORDER BY date DESC, time DESC`,
+      `SELECT * FROM bookings WHERE telegram_id = $1 AND (date < $2 OR status != 'confirmed') ORDER BY date DESC, time DESC`,
       [telegramId, today]
     );
     return result.rows;

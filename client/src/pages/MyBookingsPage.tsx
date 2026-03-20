@@ -337,7 +337,7 @@ function RescheduleModal({
 interface BookingCardProps {
   booking: Booking;
   isPast?: boolean;
-  onCancel?: (id: string) => void;
+  onCancel?: (id: string | number) => void;
   onReschedule?: (booking: Booking) => void;
   cancelling?: boolean;
 }
@@ -548,18 +548,19 @@ export default function MyBookingsPage() {
   }, []);
 
   // Отмена записи с подтверждением
-  const handleCancel = (bookingId: string) => {
+  const handleCancel = (bookingId: string | number) => {
+    const id = String(bookingId);
     showConfirm(
       'Отменить запись?',
       'Вы уверены, что хотите отменить эту запись?',
       async () => {
         const telegramId = getTelegramId();
-        console.log('[CANCEL] bookingId:', bookingId, 'telegramId:', telegramId);
+        console.log('[CANCEL] bookingId:', id, 'telegramId:', telegramId);
         if (!telegramId) return;
 
-        setCancelling(bookingId);
+        setCancelling(id);
         try {
-          const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/cancel`, {
+          const res = await fetch(`${API_BASE}/my-bookings/${id}/cancel`, {
             method: 'PATCH',
             headers: { 'x-telegram-id': String(telegramId) },
           });
@@ -569,9 +570,9 @@ export default function MyBookingsPage() {
           console.log('[CANCEL] response data:', data);
 
           if (res.ok) {
-            const cancelled = upcoming.find(b => b.id === bookingId);
+            const cancelled = upcoming.find(b => String(b.id) === id);
             if (cancelled) {
-              setUpcoming(prev => prev.filter(b => b.id !== bookingId));
+              setUpcoming(prev => prev.filter(b => String(b.id) !== id));
               // Используем статус от сервера
               setPast(prev => [{ ...cancelled, status: 'cancelled_by_user' }, ...prev]);
             }
@@ -593,8 +594,9 @@ export default function MyBookingsPage() {
   const handleReschedule = async (date: string, time: string) => {
     if (!rescheduleBooking) return;
     
+    const bookingId = String(rescheduleBooking.id);
     const telegramId = getTelegramId();
-    console.log('[RESCHEDULE] bookingId:', rescheduleBooking.id, 'telegramId:', telegramId, 'date:', date, 'time:', time);
+    console.log('[RESCHEDULE] bookingId:', bookingId, 'telegramId:', telegramId, 'date:', date, 'time:', time);
     if (!telegramId) return;
 
     setRescheduling(true);
@@ -606,7 +608,7 @@ export default function MyBookingsPage() {
       const data = await resBookings.json();
       console.log('[RESCHEDULE] all bookings:', data);
       const allBookings = [...(data.upcoming || []), ...(data.past || [])];
-      const currentBooking = allBookings.find((b: Booking) => b.id === rescheduleBooking.id);
+      const currentBooking = allBookings.find((b: Booking) => String(b.id) === bookingId);
       
       console.log('[RESCHEDULE] currentBooking:', currentBooking);
       
@@ -617,7 +619,7 @@ export default function MyBookingsPage() {
         return;
       }
 
-      const res = await fetch(`${API_BASE}/my-bookings/${rescheduleBooking.id}/reschedule`, {
+      const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/reschedule`, {
         method: 'PATCH',
         headers: { 
           'Content-Type': 'application/json',
@@ -633,7 +635,7 @@ export default function MyBookingsPage() {
       if (res.ok) {
         const updated = await res.json();
         // Обновляем запись в списке
-        setUpcoming(prev => prev.map(b => b.id === updated.id ? updated : b));
+        setUpcoming(prev => prev.map(b => String(b.id) === bookingId ? updated : b));
         setRescheduleBooking(null);
         showAlert('Запись перенесена', 'Ваша запись успешно перенесена на другую дату', 'success');
       } else {
@@ -760,7 +762,7 @@ export default function MyBookingsPage() {
                 isPast={activeTab === 'past'}
                 onCancel={activeTab === 'upcoming' ? handleCancel : undefined}
                 onReschedule={activeTab === 'upcoming' ? () => setRescheduleBooking(booking) : undefined}
-                cancelling={activeTab === 'upcoming' && cancelling === booking.id}
+                cancelling={activeTab === 'upcoming' && cancelling === String(booking.id)}
               />
             ))}
           </div>
