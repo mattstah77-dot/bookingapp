@@ -361,7 +361,12 @@ export default function AdminPage() {
         
         const res2 = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
         const data2 = await res2.json();
-        setServices(data2);
+        // Нормализуем данные
+        const normalized = data2.map((s: any) => ({
+          ...s,
+          isActive: s.isActive ?? s.is_active ?? true,
+        }));
+        setServices(normalized);
         showAlert('Сохранено', 'Услуга создана', 'success');
       } catch (err: any) {
         console.error('Failed to create service:', err);
@@ -383,7 +388,12 @@ export default function AdminPage() {
         
         const res2 = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
         const data2 = await res2.json();
-        setServices(data2);
+        // Нормализуем данные
+        const normalized = data2.map((s: any) => ({
+          ...s,
+          isActive: s.isActive ?? s.is_active ?? true,
+        }));
+        setServices(normalized);
         showAlert('Сохранено', 'Услуга обновлена', 'success');
       } catch (err: any) {
         console.error('Failed to update service:', err);
