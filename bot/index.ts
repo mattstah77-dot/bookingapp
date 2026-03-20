@@ -39,7 +39,7 @@ async function getUserBookings(telegramId: number, type: 'upcoming' | 'past') {
   let userBookings = allBookings.filter(b => b.telegramId === telegramId);
   
   if (type === 'upcoming') {
-    // Предстоящие: дата >= сегодня
+    // Предстоящие: дата >= сегодня и статус confirmed
     userBookings = userBookings
       .filter(b => b.date >= today && b.status === 'confirmed')
       .sort((a, b) => {
@@ -47,9 +47,9 @@ async function getUserBookings(telegramId: number, type: 'upcoming' | 'past') {
         return a.time.localeCompare(b.time);
       });
   } else {
-    // Прошедшие: дата < сегодня или отмененные
+    // Прошедшие: дата < сегодня или любой не-confirmed статус
     userBookings = userBookings
-      .filter(b => b.date < today || b.status === 'cancelled')
+      .filter(b => b.date < today || b.status !== 'confirmed')
       .sort((a, b) => {
         if (a.date !== b.date) return b.date.localeCompare(a.date);
         return b.time.localeCompare(a.time);
@@ -61,7 +61,18 @@ async function getUserBookings(telegramId: number, type: 'upcoming' | 'past') {
 
 // Формирование текста записи для клиента
 function getUserBookingText(booking: any): string {
-  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
+  let statusText = '✅ Подтверждено';
+  if (booking.status === 'cancelled_by_user') {
+    statusText = '❌ Отменено вами';
+  } else if (booking.status === 'cancelled_by_admin') {
+    statusText = '❌ Отменено администратором';
+  } else if (booking.status === 'cancelled') {
+    statusText = '❌ Отменено';
+  } else if (booking.status === 'completed') {
+    statusText = '✅ Завершено';
+  } else if (booking.status === 'no_show') {
+    statusText = '⚠️ Не явился';
+  }
   
   // Вычисляем время окончания
   const [hours, mins] = booking.time.split(':').map(Number);
@@ -102,7 +113,13 @@ function getUserBookingsKeyboard(bookings: any[], type: 'upcoming' | 'past', pag
   
   // Кнопки записей
   for (const b of pageBookings) {
-    const status = b.status === 'confirmed' ? '✅' : '❌';
+    let status = '✅';
+    if (b.status === 'cancelled_by_user') status = '❌👤';
+    else if (b.status === 'cancelled_by_admin') status = '❌👨‍💼';
+    else if (b.status === 'cancelled') status = '❌';
+    else if (b.status === 'completed') status = '✅';
+    else if (b.status === 'no_show') status = '⚠️';
+    
     const dayStr = formatDateFull(b.date);
     const btnText = `${status} ${dayStr} ${b.time} | ${b.serviceName}`;
     keyboard.push([{ text: btnText, callback_data: `my_booking_view_${type}_${b.id}_${page}` }]);
@@ -132,8 +149,19 @@ function getUserBookingsKeyboard(bookings: any[], type: 'upcoming' | 'past', pag
 
 // Детальная карточка записи клиента
 function getUserBookingDetail(booking: any, type: 'upcoming' | 'past', page: number) {
-  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
-  
+  let statusText = '✅ Подтверждено';
+  if (booking.status === 'cancelled_by_user') {
+    statusText = '❌ Отменено вами';
+  } else if (booking.status === 'cancelled_by_admin') {
+    statusText = '❌ Отменено администратором';
+  } else if (booking.status === 'cancelled') {
+    statusText = '❌ Отменено';
+  } else if (booking.status === 'completed') {
+    statusText = '✅ Завершено';
+  } else if (booking.status === 'no_show') {
+    statusText = '⚠️ Не явился';
+  }
+
   // Вычисляем время окончания
   const [hours, mins] = booking.time.split(':').map(Number);
   const endMins = hours * 60 + mins + booking.duration;
@@ -185,7 +213,19 @@ function getBookingsKeyboard(page: number, total: number, messageId?: number) {
 
 // Формирование карточки записи
 function getBookingCard(booking: any, messageId?: number) {
-  const statusText = booking.status === 'confirmed' ? '✅ Подтверждено' : '❌ Отменено';
+  let statusText = '✅ Подтверждено';
+  if (booking.status === 'cancelled_by_user') {
+    statusText = '❌ Отменено клиентом';
+  } else if (booking.status === 'cancelled_by_admin') {
+    statusText = '❌ Отменено администратором';
+  } else if (booking.status === 'cancelled') {
+    statusText = '❌ Отменено';
+  } else if (booking.status === 'completed') {
+    statusText = '✅ Завершено';
+  } else if (booking.status === 'no_show') {
+    statusText = '⚠️ Не явился';
+  }
+  
   const statusColor = booking.status === 'confirmed' ? '#22c55e' : '#ef4444';
   
   // Вычисляем время окончания
@@ -246,7 +286,13 @@ async function getBookingsListPage(page: number) {
   const keyboard = [];
   
   for (const b of pageBookings) {
-    const status = b.status === 'confirmed' ? '✅' : '❌';
+    let status = '✅';
+    if (b.status === 'cancelled_by_user') status = '❌👤';
+    else if (b.status === 'cancelled_by_admin') status = '❌👨‍💼';
+    else if (b.status === 'cancelled') status = '❌';
+    else if (b.status === 'completed') status = '✅';
+    else if (b.status === 'no_show') status = '⚠️';
+    
     const dayStr = formatDateFull(b.date);
     const btnText = `${status} ${dayStr} ${b.time} | ${b.serviceName} — ${b.price}₽`;
     keyboard.push([{ text: btnText, callback_data: `booking_view_${b.id}` }]);
@@ -525,14 +571,14 @@ export function createBot() {
     // ========== ОТМЕНА ЗАПИСИ КЛИЕНТОМ ==========
     if (callbackData.startsWith('my_booking_cancel_')) {
       const bookingId = parseInt(callbackData.replace('my_booking_cancel_', ''));
-      await db.updateBookingStatus(bookingId, 'cancelled');
+      await db.updateBookingStatus(bookingId, 'cancelled_by_user');
       
       const allBookings = await db.getBookings();
       const booking = allBookings.find(b => b.id === bookingId);
       
       if (booking) {
         const { text, keyboard } = getUserBookingDetail(booking, 'upcoming', 0);
-        await ctx.editMessageText(text + '\n\n❌ Запись отменена', keyboard);
+        await ctx.editMessageText(text + '\n\n❌ Запись отменена вами', keyboard);
       }
       return;
     }
