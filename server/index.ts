@@ -5,7 +5,7 @@ import { Bot } from 'grammy';
 import { createBot, startBot } from '../bot/index.js';
 import apiRouter from './api.js';
 import { db } from './database.js';
-import { webhookBotResolver } from './middleware.js';
+import { webhookBotResolver, type AuthenticatedRequest } from './middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,8 +48,8 @@ app.post('/webhook', async (req, res) => {
 });
 
 // Telegram webhook endpoint для дочерних ботов (multi-tenant)
-app.post('/webhook/:secret_path', webhookBotResolver, async (req, res) => {
-  const bot = req.bot;
+app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedRequest, res) => {
+ const bot = req.bot;
   
   if (!bot) {
     res.send('OK');
