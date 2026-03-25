@@ -3,25 +3,42 @@ import { db } from './database.js';
 
 // Тип расширенного запроса с данными бота (из БД)
 export interface BotInfo {
-  id: number;
-  ownerId: number;
-  telegramBotId: string;
-  secretPath: string;
-  isActive: boolean;
-  // Поля из БД (snake_case) - для совместимости
-  owner_id?: number;
-  telegram_bot_id?: string;
-  secret_path?: string;
-  is_active?: boolean;
-  // Для обратной совместимости - можно использовать любое
-  [key: string]: any;
+ id: number;
+ ownerId: number;
+ telegramBotId: string;
+ secretPath: string;
+ isActive: boolean;
+ // Поля из БД (snake_case) - для совместимости
+ owner_id?: number;
+ telegram_bot_id?: string;
+ secret_path?: string;
+ is_active?: boolean;
+ // Для обратной совместимости - можно использовать любое
+ [key: string]: any;
 }
+
+// Тип для headers - поддерживает string | string[]
+type HeadersType = Record<string, string | string[] | undefined>;
 
 // Тип расширенного запроса с данными бота
 export interface AuthenticatedRequest extends Request {
-  botId?: number;
-  ownerId?: number;
-  bot?: BotInfo;
+ botId?: number;
+ ownerId?: number;
+ bot?: BotInfo;
+}
+
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
+
+// Вспомогательная функция для безопасного получения заголовка
+export function getHeaderAsString(headers: any, key: string): string {
+ const value = headers[key];
+ if (!value) return '';
+ return Array.isArray(value) ? value[0] : value;
+}
+
+// Получить botId из запроса (из middleware или по умолчанию1 для обратной совместимости)
+export function getBotId(req: AuthenticatedRequest): number {
+ return req.botId ||1;
 }
 
 /**
@@ -29,9 +46,9 @@ export interface AuthenticatedRequest extends Request {
  * Все запросы от Mini App должны использовать этот middleware
  */
 export async function botFilter(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    // Получаем bot_id из заголовка (устанавливается после верификации JWT)
-    const botIdStr = getHeaderAsString(req.headers, 'x-bot-id');
+ try {
+ // Получаем bot_id из заголовка (устанавливается после верификации JWT)
+ const botIdStr = getHeaderAsString(req.headers, 'x-bot-id');
     
     if (!botIdStr) {
       res.status(401).json({ error: 'Bot ID is required' });
@@ -56,28 +73,21 @@ export async function botFilter(req: AuthenticatedRequest, res: Response, next: 
       return;
     }
     
-    // Добавляем данные бота в запрос (с проверкой на undefined)
-    req.botId = parsedBotId;
-    req.bot = {
-      id: bot.id,
-      ownerId: bot.owner_id ?? 0,
-      telegramBotId: bot.telegram_bot_id ?? '',
-      secretPath: bot.secret_path ?? '',
-      isActive: bot.is_active ?? false,
-    };
-    
-    next();
-  } catch (error) {
-    console.error('❌ botFilter middleware error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-}
-
-// Вспомогательная функция для безопасного получения заголовка
-function getHeaderAsString(headers: any, key: string): string {
-  const value = headers[key];
-  if (!value) return '';
-  return Array.isArray(value) ? value[0] : value;
+// Добавляем данные бота в запрос (с проверкой на undefined)
+ req.botId = parsedBotId;
+ req.bot = {
+ id: bot.id,
+ ownerId: bot.owner_id ??0,
+ telegramBotId: bot.telegram_bot_id ??'',
+ secretPath: bot.secret_path ??'',
+ isActive: bot.is_active ??false,
+ };
+   
+ next();
+ } catch (error) {
+ console.error('❌ botFilter middleware error:', error);
+ res.status(500).json({ error: 'Internal server error' });
+ }
 }
 
 /**
@@ -85,8 +95,8 @@ function getHeaderAsString(headers: any, key: string): string {
  * Используется для админских операций
  */
 export async function requireOwner(req: AuthenticatedRequest, res: Response, next: NextFunction): Promise<void> {
-  try {
-    const telegramIdStr = getHeaderAsString(req.headers, 'x-telegram-id');
+ try {
+ const telegramIdStr = getHeaderAsString(req.headers, 'x-telegram-id');
     
     if (!telegramIdStr) {
       res.status(401).json({ error: 'Telegram ID is required' });

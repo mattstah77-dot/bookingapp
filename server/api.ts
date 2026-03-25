@@ -14,11 +14,11 @@ function getBotId(req: AuthenticatedRequest): number {
 }
 
 // Получить telegramId из заголовка (может быть string | string[])
-function getTelegramId(req: AuthenticatedRequest): number {
-  const header = req.headers['x-telegram-id'];
-  if (!header) return 0;
-  const str = Array.isArray(header) ? header[0] : header;
-  return parseInt(str, 10) || 0;
+// Получить telegramId из заголовка (может быть string | string[])
+function getTelegramId(req: any): number {
+ const header = (req.headers as any)["x-telegram-id"];
+ const str = header ? (Array.isArray(header) ? header[0] : header) : "";
+ return parseInt(str,10) ||0;
 }
 
 // Middleware для проверки админа (Telegram или пароль)
@@ -188,7 +188,7 @@ router.get('/my-bookings', botFilter, async (req: AuthenticatedRequest, res) => 
 router.patch('/my-bookings/:id/cancel', botFilter, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const telegramId = getTelegramId(req);
     
     if (!telegramId) {
@@ -220,7 +220,7 @@ router.patch('/my-bookings/:id/cancel', botFilter, async (req: AuthenticatedRequ
 router.patch('/my-bookings/:id/reschedule', botFilter, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { date, time } = req.body;
     const telegramId = getTelegramId(req);
     
@@ -283,7 +283,7 @@ router.get('/admin/services', botFilter, requireOwner, async (req: Authenticated
 router.get('/admin/services/:id', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const service = await db.getServiceById(botId, id);
     
     if (service) {
@@ -327,7 +327,7 @@ router.post('/admin/services', botFilter, requireOwner, async (req: Authenticate
 router.put('/admin/services/:id', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { name, description, duration, price, photos, isActive } = req.body;
     
     const service = await db.updateService(botId, id, {
@@ -353,7 +353,7 @@ router.put('/admin/services/:id', botFilter, requireOwner, async (req: Authentic
 router.delete('/admin/services/:id', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const deleted = await db.deleteService(botId, id);
     
     if (deleted) {
@@ -443,7 +443,7 @@ router.get('/admin/bookings/dates', botFilter, requireOwner, async (req: Authent
 router.patch('/admin/bookings/:id', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { status } = req.body;
     
     if (!status || !['confirmed', 'cancelled', 'cancelled_by_admin', 'completed', 'no_show'].includes(status)) {
@@ -466,7 +466,7 @@ router.patch('/admin/bookings/:id', botFilter, requireOwner, async (req: Authent
 router.delete('/admin/bookings/:id', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const deleted = await db.deleteBooking(botId, id);
     
     if (deleted) {
@@ -515,7 +515,7 @@ router.put('/admin/reminder-settings', botFilter, requireOwner, async (req: Auth
 // Получить информацию о боте по ID
 router.get('/bots/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const bot = await db.getBotById(id);
     
     if (bot) {
@@ -568,7 +568,7 @@ router.post('/bots', async (req, res) => {
 // Обновить бота
 router.put('/bots/:id', async (req, res) => {
   try {
-    const id = parseInt(req.params.id);
+    const id = parseInt(req.params.id as string);
     const { telegramBotId, botToken, botUsername, isActive, status } = req.body;
     
     const bot = await db.updateBot(id, {
