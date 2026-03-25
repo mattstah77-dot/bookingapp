@@ -5,7 +5,7 @@ import { Bot } from 'grammy';
 import { createBot, startBot } from '../bot/index.js';
 import apiRouter from './api.js';
 import { db } from './database.js';
-import { startReminderScheduler, scheduleRemindersForBooking, notifyAdminOfNewBooking } from './reminders.js';
+import { webhookBotResolver } from './middleware.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,13 +29,13 @@ app.get('/api/health', (req, res) => {
 const distPath = path.join(__dirname, '..');
 app.use(express.static(distPath));
 
-// Глобальный экземпляр бота
+// Глобальный экземпляр главного бота
 let globalBot: Bot | null = null;
 
 // ID админов для уведомлений
 export const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 
-// Telegram webhook endpoint
+// Telegram webhook endpoint для главного бота (обратная совместимость)
 app.post('/webhook', async (req, res) => {
   if (globalBot) {
     try {
@@ -44,6 +44,29 @@ app.post('/webhook', async (req, res) => {
       console.error('Webhook error:', err);
     }
   }
+  res.send('OK');
+});
+
+// Telegram webhook endpoint для дочерних ботов (multi-tenant)
+app.post('/webhook/:secret_path', webhookBotResolver, async (req, res) => {
+  const bot = req.bot;
+  
+  if (!bot) {
+    res.send('OK');
+    return;
+  }
+  
+  try {
+    // Динамически создаём бота для обработки обновления
+    const childBot = new Bot(bot.telegramBotId);
+    
+    // Обрабатываем обновление
+    await childBot.handleUpdate(req.body);
+  } catch (err) {
+    console.error(`Webhook error for bot ${bot.telegramBotId}:`, err);
+  }
+  
+  // Всегда возвращаем 200 для Telegram
   res.send('OK');
 });
 
@@ -72,11 +95,8 @@ async function start() {
       if (bot) {
         globalBot = bot; // Сохраняем для webhook
         await startBot(bot);
-        
-        // Запуск планировщика напоминаний
-        startReminderScheduler(bot);
       } else {
-        console.log('ℹ️ Bot not started (BOT_TOKEN not set)');
+        console.log('ℹ️ Main bot not started (BOT_TOKEN not set)');
       }
     });
   } catch (error) {

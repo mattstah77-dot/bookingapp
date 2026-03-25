@@ -14,8 +14,35 @@ import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon } from
 
 const API_BASE = '/api';
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+ const params = new URLSearchParams(window.location.search);
+ const botIdStr = params.get('bot_id');
+ return botIdStr ? parseInt(botIdStr,10) ||1 :1;
+}
+
+// Получить telegramId из Telegram WebApp
 function getTelegramId(): number | undefined {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+ return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+}
+
+// Общие заголовки для API запросов
+function getApiHeaders(): HeadersInit {
+ const headers: HeadersInit = {
+ 'Content-Type': 'application/json',
+ };
+  
+ const botId = getBotIdFromUrl();
+ if (botId) {
+ headers['x-bot-id'] = String(botId);
+ }
+  
+ const telegramId = getTelegramId();
+ if (telegramId) {
+ headers['x-telegram-id'] = String(telegramId);
+ }
+  
+ return headers;
 }
 
 export default function BookingPage() {
@@ -47,38 +74,38 @@ export default function BookingPage() {
     reset,
   } = useBooking();
 
-  // Загрузка услуг при старте
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const res = await fetch(`${API_BASE}/services`);
-        const data = await res.json();
-        setServices(data);
-      } catch (err) {
-        console.error('Failed to fetch services:', err);
-        setError('Не удалось загрузить услуги');
-      }
-    };
-    fetchServices();
-  }, []);
+ // Загрузка услуг при старте
+ useEffect(() => {
+ const fetchServices = async () => {
+ try {
+ const res = await fetch(`${API_BASE}/services`, { headers: getApiHeaders() });
+ const data = await res.json();
+ setServices(data);
+ } catch (err) {
+ console.error('Failed to fetch services:', err);
+ setError('Не удалось загрузить услуги');
+ }
+ };
+ fetchServices();
+ }, []);
 
-  // Проверка админа
-  useEffect(() => {
-    const checkAdmin = async () => {
-      const telegramId = getTelegramId();
-      if (!telegramId) return;
-      
-      try {
-        const res = await fetch(`${API_BASE}/admin/check?telegramId=${telegramId}`);
-        const data = await res.json();
-        setIsAdmin(data.isAdmin || false);
-      } catch (err) {
-        console.error('Failed to check admin:', err);
-      }
-    };
-    
-    checkAdmin();
-  }, []);
+ // Проверка админа
+ useEffect(() => {
+ const checkAdmin = async () => {
+ const telegramId = getTelegramId();
+ if (!telegramId) return;
+ 
+ try {
+ const res = await fetch(`${API_BASE}/admin/check`, { headers: getApiHeaders() });
+ const data = await res.json();
+ setIsAdmin(data.isAdmin || false);
+ } catch (err) {
+ console.error('Failed to check admin:', err);
+ }
+ };
+ 
+ checkAdmin();
+ }, []);
 
   // Умная генерация слотов на клиенте
   const { 
@@ -115,22 +142,19 @@ export default function BookingPage() {
       
       const telegramId = getTelegramId();
       
-      const res = await fetch(`${API_BASE}/bookings`, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          ...(telegramId && { 'x-telegram-id': String(telegramId) }),
-        },
-        body: JSON.stringify({
-          serviceId: selectedService.id,
-          serviceName: selectedService.name,
-          date: dateStr,
-          time: selectedSlot,
-          duration: selectedService.duration,
-          price: selectedService.price,
-          telegramId,
-        }),
-      });
+ const res = await fetch(`${API_BASE}/bookings`, {
+ method: 'POST',
+ headers: getApiHeaders(),
+ body: JSON.stringify({
+ serviceId: selectedService.id,
+ serviceName: selectedService.name,
+ date: dateStr,
+ time: selectedSlot,
+ duration: selectedService.duration,
+ price: selectedService.price,
+ telegramId,
+ }),
+ });
 
       if (!res.ok) {
         const err = await res.json();

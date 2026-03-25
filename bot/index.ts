@@ -1,16 +1,124 @@
 import { Bot, Context, Keyboard } from 'grammy';
 import { db } from '../server/database.js';
+import crypto from 'crypto';
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
+const SERVER_URL = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
 const ADMIN_IDS = (process.env.ADMIN_IDS || '').split(',').map(id => parseInt(id.trim())).filter(id => !isNaN(id));
 
 console.log('🤖 Bot initializing...');
 console.log('📝 BOT_TOKEN set:', !!BOT_TOKEN);
 console.log('📝 ADMIN_IDS:', ADMIN_IDS);
+console.log('📝 SERVER_URL:', SERVER_URL);
 
 if (!BOT_TOKEN) {
   console.warn('⚠️ BOT_TOKEN not set, bot will not start');
+}
+
+// ========== ФУНКЦИИ ДЛЯ СОЗДАНИЯ ДОЧЕРНИХ БОТОВ ==========
+
+/**
+ * Валидирует токен бота через Telegram API (getMe)
+ */
+export async function validateToken(botToken: string): Promise<{ success: boolean; bot?: { id: string; username: string; first_name: string }; error?: string }> {
+  try {
+    const testBot = new Bot(botToken);
+    const me = await testBot.api.getMe();
+    return {
+      success: true,
+      bot: {
+        id: me.id.toString(),
+        username: me.username || '',
+        first_name: me.first_name,
+      },
+    };
+  } catch (error: any) {
+    console.error('❌ Token validation failed:', error.message);
+    return {
+      success: false,
+      error: error.description || 'Invalid token',
+    };
+  }
+}
+
+/**
+ * Генерирует уникальный secret_path для webhook
+ */
+export function generateSecretPath(): string {
+  return 'wh_' + crypto.randomBytes(16).toString('hex');
+}
+
+/**
+ * Устанавливает webhook для дочернего бота
+ */
+export async function setupWebhook(botToken: string, secretPath: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const webhookUrl = `${SERVER_URL}/webhook/${secretPath}`;
+    const testBot = new Bot(botToken);
+    
+    await testBot.api.setWebhook(webhookUrl);
+    console.log(`✅ Webhook set for ${webhookUrl}`);
+    
+    return { success: true };
+  } catch (error: any) {
+    console.error('❌ Webhook setup failed:', error.message);
+    return {
+      success: false,
+      error: error.description || 'Failed to set webhook',
+    };
+  }
+}
+
+/**
+ * Создаёт дочернего бота в системе
+ */
+export async function createChildBot(
+  botToken: string,
+  ownerId: number,
+  ownerName: string
+): Promise<{ success: boolean; bot?: any; error?: string }> {
+  try {
+    // 1. Валидируем токен
+    const validation = await validateToken(botToken);
+    if (!validation.success || !validation.bot) {
+      return { success: false, error: validation.error || 'Invalid token' };
+    }
+    
+    // 2. Генерируем secret_path
+    const secretPath = generateSecretPath();
+    
+    // 3. Пробуем установить webhook
+    const webhookResult = await setupWebhook(botToken, secretPath);
+    if (!webhookResult.success) {
+      return { success: false, error: webhookResult.error || 'Failed to setup webhook' };
+    }
+    
+    // 4. Создаём запись в БД
+    const bot = await db.createBot({
+      telegramBotId: validation.bot.id,
+      secretPath: secretPath,
+      botToken: botToken, // В продакшене нужно шифровать
+      botUsername: validation.bot.username,
+      ownerId: ownerId,
+      ownerName: ownerName,
+      isActive: true,
+      status: 'success',
+    });
+    
+    // 5. Seed данные для нового бота
+    await db.seedBotData(bot.id);
+    
+    console.log(`✅ Child bot created: ${validation.bot.username} (ID: ${bot.id})`);
+    
+    return { success: true, bot };
+  } catch (error: any) {
+    console.error('❌ Failed to create child bot:', error);
+    return {
+      success: false,
+      error: error.message || 'Failed to create bot',
+    };
+  }
 }
 
 // Проверка админа
@@ -24,6 +132,9 @@ function isAdmin(ctx: Context): boolean {
 // Константы для пагинации
 const PAGE_SIZE = 5;
 
+// ID главного бота (по умолчанию = 1)
+const MAIN_BOT_ID = 1;
+
 // Формат даты с днём недели
 function formatDateFull(dateStr: string): string {
   const date = new Date(dateStr + 'T00:00:00');
@@ -31,9 +142,9 @@ function formatDateFull(dateStr: string): string {
   return `${date.getDate()} ${date.toLocaleDateString('ru-RU', { month: 'short' })} (${days[date.getDay()]})`;
 }
 
-// Получить записи пользователя по telegramId
+// Получить записи пользователя по telegramId (для главного бота)
 async function getUserBookings(telegramId: number, type: 'upcoming' | 'past') {
-  const allBookings = await db.getBookings();
+  const allBookings = await db.getBookings(MAIN_BOT_ID);
   const today = new Date().toISOString().split('T')[0];
   
   let userBookings = allBookings.filter(b => b.telegramId === telegramId);
@@ -264,7 +375,7 @@ function getBookingCard(booking: any, messageId?: number) {
 
 // Формирование списка записей для страницы
 async function getBookingsListPage(page: number) {
-  const allBookings = await db.getAllBookings({});
+  const allBookings = await db.getAllBookings(MAIN_BOT_ID);
   
   // Сортировка: ближайшие первые (по дате → по времени)
   allBookings.sort((a, b) => {
@@ -423,13 +534,44 @@ export function createBot() {
           reply_markup: {
             inline_keyboard: [
               [{ text: '📅 Открыть панель', web_app: { url: `${serverUrl}/admin` } }],
-              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }]
+              [{ text: '📋 Посмотреть записи', callback_data: 'bookings_list' }],
+              [{ text: '🤖 Добавить бота', callback_data: 'addbot_start' }]
             ]
           }
         }
       );
     } catch (err) {
       console.error('Error in /admin:', err);
+      await ctx.reply('❌ Произошла ошибка');
+    }
+  });
+
+  // Команда /addbot - добавить нового бота для бизнеса
+  bot.command('addbot', async (ctx: Context) => {
+    try {
+      // Проверяем что пользователь админ
+      if (!isAdmin(ctx)) {
+        await ctx.reply('⛔ У вас нет доступа к этой команде.');
+        return;
+      }
+      
+      await ctx.reply(
+        '🤖 Создание нового бота для бизнеса\n\n' +
+        'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
+        'Формат: просто отправьте токен в формате XXXXX:XXXXXXXXXXXXX',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
+            ]
+          }
+        }
+      );
+      
+      // Устанавливаем состояние ожидания токена (используем свойство бота для хранения состояния)
+      (ctx as any).waitingForBotToken = true;
+    } catch (err) {
+      console.error('Error in /addbot:', err);
       await ctx.reply('❌ Произошла ошибка');
     }
   });
@@ -553,7 +695,7 @@ export function createBot() {
       const bookingId = parseInt(parts[4]);
       const page = parseInt(parts[5]) || 0;
       
-      const allBookings = await db.getBookings();
+      const allBookings = await db.getBookings(MAIN_BOT_ID);
       const booking = allBookings.find(b => b.id === bookingId);
       
       if (!booking) {
@@ -571,9 +713,9 @@ export function createBot() {
     // ========== ОТМЕНА ЗАПИСИ КЛИЕНТОМ ==========
     if (callbackData.startsWith('my_booking_cancel_')) {
       const bookingId = parseInt(callbackData.replace('my_booking_cancel_', ''));
-      await db.updateBookingStatus(bookingId, 'cancelled_by_user');
+      await db.updateBookingStatus(MAIN_BOT_ID, bookingId, 'cancelled_by_user');
       
-      const allBookings = await db.getBookings();
+      const allBookings = await db.getBookings(MAIN_BOT_ID);
       const booking = allBookings.find(b => b.id === bookingId);
       
       if (booking) {
@@ -619,7 +761,7 @@ export function createBot() {
     // Просмотр конкретной записи
     if (callbackData.startsWith('booking_view_')) {
       const bookingId = parseInt(callbackData.replace('booking_view_', ''));
-      const allBookings = await db.getAllBookings({});
+      const allBookings = await db.getAllBookings(MAIN_BOT_ID);
       const booking = allBookings.find(b => b.id === bookingId);
       
       if (!booking) {
@@ -637,9 +779,9 @@ export function createBot() {
     // Отмена записи
     if (callbackData.startsWith('booking_cancel_')) {
       const bookingId = parseInt(callbackData.replace('booking_cancel_', ''));
-      await db.updateBookingStatus(bookingId, 'cancelled');
+      await db.updateBookingStatus(MAIN_BOT_ID, bookingId, 'cancelled');
       
-      const booking = (await db.getAllBookings({})).find(b => b.id === bookingId);
+      const booking = (await db.getAllBookings(MAIN_BOT_ID)).find(b => b.id === bookingId);
       if (booking) {
         const { text, keyboard } = getBookingCard(booking);
         await ctx.editMessageText(text + '\n❌ Запись отменена', keyboard);
@@ -650,18 +792,100 @@ export function createBot() {
     // Удаление записи
     if (callbackData.startsWith('booking_delete_')) {
       const bookingId = parseInt(callbackData.replace('booking_delete_', ''));
-      await db.deleteBooking(bookingId);
+      await db.deleteBooking(MAIN_BOT_ID, bookingId);
       
       // Возвращаемся к списку
       const { text, keyboard } = await getBookingsListPage(0);
       await ctx.editMessageText(text + '\n🗑 Запись удалена', { reply_markup: { inline_keyboard: keyboard } });
       return;
     }
+    // ========== ОБРАБОТКА ADD_BOT ==========
+    if (callbackData === 'addbot_start') {
+      await ctx.editMessageText(
+        '🤖 Создание нового бота для бизнеса\n\n' +
+        'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
+        'Формат: просто отправьте токен в формате XXXXX:XXXXXXXXXXXXX',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+    
+    // Обработка callback "Добавить бота" из меню
+    if (callbackData === 'addbot_confirm_token') {
+      await ctx.editMessageText(
+        '🤖 Создание нового бота\n\n' +
+        'Введите токен бота:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
   });
 
-  // Обработка текстовых сообщений
+  // Обработка текстовых сообщений (для токена бота)
   bot.on('message:text', async (ctx: Context) => {
     const text = ctx.message?.text;
+    const telegramId = ctx.from?.id;
+    
+    // Проверяем, ждём ли мы токен бота (используем свойство контекста)
+    if ((ctx as any).waitingForBotToken && text && telegramId) {
+      const botToken = text.trim();
+      
+      // Проверяем формат токена
+      if (!botToken.includes(':') || botToken.split(':').length !== 2) {
+        await ctx.reply('❌ Неверный формат токена. Пример: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz');
+        return;
+      }
+      
+      await ctx.reply('⏳ Проверяю токен и создаю бота...');
+      
+      try {
+        const result = await createChildBot(botToken, telegramId, ctx.from.first_name);
+        
+        if (result.success && result.bot) {
+          const botUsername = result.bot.botUsername;
+          const secretPath = result.bot.secretPath;
+          const miniAppUrl = `${SERVER_URL}?bot_id=${result.bot.id}`;
+          
+          await ctx.reply(
+            `✅ Бот успешно создан!\n\n` +
+            `🤖 Username: @${botUsername}\n` +
+            `🔗 Mini App: ${miniAppUrl}\n\n` +
+            `Передайте эту ссылку вашему клиенту для использования.`,
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '🛠 Админ-панель', web_app: { url: `${SERVER_URL}/admin?bot_id=${result.bot.id}` } }],
+                  [{ text: '🔙 В меню', callback_data: 'admin_menu' }]
+                ]
+              }
+            }
+          );
+        } else {
+          await ctx.reply(`❌ Ошибка: ${result.error || 'Неизвестная ошибка'}`);
+        }
+      } catch (err) {
+        console.error('Error creating bot:', err);
+        await ctx.reply('❌ Произошла ошибка при создании бота');
+      }
+      
+      // Сбрасываем состояние
+      (ctx as any).waitingForBotToken = false;
+      return;
+    }
+    
+    // Обычные сообщения
     if (text) {
       await ctx.reply('Я получил ваше сообщение: ' + text);
     }

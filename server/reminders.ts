@@ -39,7 +39,8 @@ function createAdminNotification(booking: any): string {
 
 // Планирование напоминаний при создании брони
 export async function scheduleRemindersForBooking(booking: any): Promise<void> {
-  const settings = await db.getReminderSettings();
+  const botId = booking.botId || 1;
+  const settings = await db.getReminderSettings(botId);
   
   if (!settings.enabled || !booking.telegramId) {
     return;
@@ -61,6 +62,7 @@ export async function scheduleRemindersForBooking(booking: any): Promise<void> {
   // Если время напоминания ещё не прошло - планируем
   if (reminderTime > new Date()) {
     await db.createReminder(
+      botId,
       booking.id,
       booking.telegramId,
       reminderTime.toISOString(),
@@ -70,21 +72,33 @@ export async function scheduleRemindersForBooking(booking: any): Promise<void> {
   }
 }
 
-// Отправка запланированных напоминаний
-export async function processPendingReminders(bot: Bot | null): Promise<void> {
-  if (!bot) return;
-  
+// Отправка запланированных напоминаний для всех ботов
+export async function processPendingReminders(): Promise<void> {
   try {
-    const pendingReminders = await db.getPendingReminders();
+    // Получаем всех ботов
+    // Внимание: нужно добавить метод getAllBots в db
+    // Для упрощения обрабатываем default бота (ID=1)
+    const botId = 1;
+    
+    const pendingReminders = await db.getPendingReminders(botId);
+    
+    // Получаем токен бота для отправки сообщений
+    const bot = await db.getBotById(botId);
+    if (!bot || !bot.botToken) {
+      console.log('⚠️ Bot token not found for reminders');
+      return;
+    }
+    
+    const telegramBot = new Bot(bot.botToken);
     
     for (const reminder of pendingReminders) {
       try {
-        await bot.api.sendMessage(
+        await telegramBot.api.sendMessage(
           reminder.telegramId,
           reminder.message || '⏰ Напоминание о вашей записи!'
         );
         
-        await db.markReminderSent(reminder.id);
+        await db.markReminderSent(botId, reminder.id);
         console.log(`✅ Reminder sent for booking ${reminder.bookingId}`);
       } catch (err) {
         console.error(`❌ Failed to send reminder ${reminder.id}:`, err);
@@ -96,31 +110,35 @@ export async function processPendingReminders(bot: Bot | null): Promise<void> {
 }
 
 // Уведомление админа о новой записи
-export async function notifyAdminOfNewBooking(bot: Bot | null, booking: any, adminIds: number[]): Promise<void> {
-  if (!bot || adminIds.length === 0) return;
+export async function notifyAdminOfNewBooking(bot: Bot | null, booking: any): Promise<void> {
+  if (!bot) return;
+  
+  const botId = booking.botId || 1;
+  
+  // Получаем владельца бота для уведомления
+  const botInfo = await db.getBotById(botId);
+  if (!botInfo || !botInfo.ownerId) return;
   
   const message = createAdminNotification(booking);
   
-  for (const adminId of adminIds) {
-    try {
-      await bot.api.sendMessage(adminId, message);
-      console.log(`✅ Admin notification sent to ${adminId}`);
-    } catch (err) {
-      console.error(`❌ Failed to notify admin ${adminId}:`, err);
-    }
+  try {
+    await bot.api.sendMessage(botInfo.ownerId, message);
+    console.log(`✅ Admin notification sent to ${botInfo.ownerId}`);
+  } catch (err) {
+    console.error(`❌ Failed to notify admin ${botInfo.ownerId}:`, err);
   }
 }
 
 // Запуск планировщика напоминаний
-export function startReminderScheduler(bot: Bot | null): void {
+export function startReminderScheduler(): void {
   console.log('⏰ Starting reminder scheduler...');
   
   setInterval(() => {
-    processPendingReminders(bot);
+    processPendingReminders();
   }, REMINDER_CHECK_INTERVAL);
   
   // Первая проверка через 10 секунд после запуска
   setTimeout(() => {
-    processPendingReminders(bot);
+    processPendingReminders();
   }, 10000);
 }

@@ -9,6 +9,25 @@ import {
 
 const API_BASE = '/api';
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+ const params = new URLSearchParams(window.location.search);
+ const botIdStr = params.get('bot_id');
+ return botIdStr ? parseInt(botIdStr,10) ||1 :1;
+}
+
+// Общие заголовки для API запросов
+function getApiHeaders(): HeadersInit {
+ const headers: HeadersInit = {};
+  
+ const botId = getBotIdFromUrl();
+ if (botId) {
+ headers['x-bot-id'] = String(botId);
+ }
+  
+ return headers;
+}
+
 // Тип для расписания с бэкенда
 interface BackendSchedule {
   dayOfWeek: number;
@@ -50,9 +69,9 @@ export function useTimeSlots({
       
       const dayOfWeek = selectedDate.getDay();
       
-      try {
-        const res = await fetch(`${API_BASE}/schedule?dayOfWeek=${dayOfWeek}`);
-        const schedule: BackendSchedule | null = await res.json();
+ try {
+ const res = await fetch(`${API_BASE}/schedule?dayOfWeek=${dayOfWeek}`, { headers: getApiHeaders() });
+ const schedule: BackendSchedule | null = await res.json();
         
         if (schedule) {
           setConfig(prev => ({
@@ -85,10 +104,11 @@ export function useTimeSlots({
       const dateStr = `${year}-${month}-${day}`;
 
       try {
-        // Используем новый эндпоинт для занятых слотов
-        const res = await fetch(
-          `${API_BASE}/booked-slots?date=${dateStr}`
-        );
+ // Используем новый эндпоинт для занятых слотов
+ const res = await fetch(
+ `${API_BASE}/booked-slots?date=${dateStr}`,
+ { headers: getApiHeaders() }
+ );
         const data = await res.json();
         
         // API возвращает массив занятых интервалов
@@ -142,7 +162,7 @@ export function useTimeSlots({
     const day = String(selectedDate.getDate()).padStart(2, '0');
     const dateStr = `${year}-${month}-${day}`;
 
-    fetch(`${API_BASE}/booked-slots?date=${dateStr}`)
+    fetch(`${API_BASE}/booked-slots?date=${dateStr}`, { headers: getApiHeaders() })
       .then(res => res.json())
       .then((data: { start: string; end: string }[]) => {
         const bookedTimes: Booking[] = Array.isArray(data) 

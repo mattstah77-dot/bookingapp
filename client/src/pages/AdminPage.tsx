@@ -59,8 +59,15 @@ interface Service {
 
 const API_BASE = '/api';
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+ const params = new URLSearchParams(window.location.search);
+ const botIdStr = params.get('bot_id');
+ return botIdStr ? parseInt(botIdStr,10) ||1 :1;
+}
+
 function getTelegramId(): number | undefined {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+ return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 }
 
 function getStoredPassword(): string | null {
@@ -72,17 +79,24 @@ function setStoredPassword(password: string): void {
 }
 
 function getAuthHeaders(): HeadersInit {
-  const tgId = getTelegramId();
-  const password = getStoredPassword();
-  
-  const headers: HeadersInit = {};
-  if (tgId) {
-    headers['x-telegram-id'] = String(tgId);
-  }
-  if (password) {
-    headers['x-admin-password'] = password;
-  }
-  return headers;
+ const tgId = getTelegramId();
+ const password = getStoredPassword();
+ 
+ const headers: HeadersInit = {};
+ 
+ // Добавляем bot_id
+ const botId = getBotIdFromUrl();
+ if (botId) {
+ headers['x-bot-id'] = String(botId);
+ }
+ 
+ if (tgId) {
+ headers['x-telegram-id'] = String(tgId);
+ }
+ if (password) {
+ headers['x-admin-password'] = password;
+ }
+ return headers;
 }
 
 export default function AdminPage() {

@@ -7,8 +7,33 @@ import { Calendar as CalendarIcon, Clock, Scissors, X, CalendarDays, ChevronLeft
 
 const API_BASE = '/api';
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+ const params = new URLSearchParams(window.location.search);
+ const botIdStr = params.get('bot_id');
+ return botIdStr ? parseInt(botIdStr,10) ||1 :1;
+}
+
+// Получить telegramId из Telegram WebApp
 function getTelegramId(): number | undefined {
-  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+ return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+}
+
+// Общие заголовки для API запросов
+function getApiHeaders(): HeadersInit {
+ const headers: HeadersInit = {};
+  
+ const botId = getBotIdFromUrl();
+ if (botId) {
+ headers['x-bot-id'] = String(botId);
+ }
+  
+ const telegramId = getTelegramId();
+ if (telegramId) {
+ headers['x-telegram-id'] = String(telegramId);
+ }
+  
+ return headers;
 }
 
 // Формат даты
@@ -175,28 +200,28 @@ function RescheduleModal({
     return parseInt(hex, 16) < 128000;
   })();
 
-  // Загрузка слотов при выборе даты
-  useEffect(() => {
-    if (!selectedDate) return;
+ // Загрузка слотов при выборе даты
+ useEffect(() => {
+ if (!selectedDate) return;
 
-    const fetchSlots = async () => {
-      setLoadingSlots(true);
-      setError(null);
-      try {
-        const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() + 1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
-        const res = await fetch(`${API_BASE}/slots?date=${dateStr}&duration=${booking.duration}`);
-        const slots = await res.json();
-        setAvailableSlots(slots);
-      } catch (err) {
-        console.error('Failed to fetch slots:', err);
-        setError('Не удалось загрузить время');
-      } finally {
-        setLoadingSlots(false);
-      }
-    };
+ const fetchSlots = async () => {
+ setLoadingSlots(true);
+ setError(null);
+ try {
+ const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() +1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
+ const res = await fetch(`${API_BASE}/slots?date=${dateStr}&duration=${booking.duration}`, { headers: getApiHeaders() });
+ const slots = await res.json();
+ setAvailableSlots(slots);
+ } catch (err) {
+ console.error('Failed to fetch slots:', err);
+ setError('Не удалось загрузить время');
+ } finally {
+ setLoadingSlots(false);
+ }
+ };
 
-    fetchSlots();
-  }, [selectedDate, booking.duration]);
+ fetchSlots();
+ }, [selectedDate, booking.duration]);
 
   const handleSave = () => {
     if (!selectedDate || !selectedTime) return;
@@ -521,31 +546,29 @@ export default function MyBookingsPage() {
     return parseInt(hex, 16) < 128000;
   })();
 
-  // Загрузка записей
-  useEffect(() => {
-    const fetchBookings = async () => {
-      const telegramId = getTelegramId();
-      if (!telegramId) {
-        setLoading(false);
-        return;
-      }
+ // Загрузка записей
+ useEffect(() => {
+ const fetchBookings = async () => {
+ const telegramId = getTelegramId();
+ if (!telegramId) {
+ setLoading(false);
+ return;
+ }
 
-      try {
-        const res = await fetch(`${API_BASE}/my-bookings`, {
-          headers: { 'x-telegram-id': String(telegramId) },
-        });
-        const data = await res.json();
-        setUpcoming(data.upcoming || []);
-        setPast(data.past || []);
-      } catch (err) {
-        console.error('Failed to fetch bookings:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
+ try {
+ const res = await fetch(`${API_BASE}/my-bookings`, { headers: getApiHeaders() });
+ const data = await res.json();
+ setUpcoming(data.upcoming || []);
+ setPast(data.past || []);
+ } catch (err) {
+ console.error('Failed to fetch bookings:', err);
+ } finally {
+ setLoading(false);
+ }
+ };
 
-    fetchBookings();
-  }, []);
+ fetchBookings();
+ }, []);
 
   // Отмена записи с подтверждением
   const handleCancel = (bookingId: string | number) => {
@@ -558,12 +581,12 @@ export default function MyBookingsPage() {
         console.log('[CANCEL] bookingId:', id, 'telegramId:', telegramId);
         if (!telegramId) return;
 
-        setCancelling(id);
-        try {
-          const res = await fetch(`${API_BASE}/my-bookings/${id}/cancel`, {
-            method: 'PATCH',
-            headers: { 'x-telegram-id': String(telegramId) },
-          });
+ setCancelling(id);
+ try {
+ const res = await fetch(`${API_BASE}/my-bookings/${id}/cancel`, {
+ method: 'PATCH',
+ headers: getApiHeaders(),
+ });
 
           console.log('[CANCEL] response status:', res.status);
           const data = await res.json();
@@ -599,34 +622,32 @@ export default function MyBookingsPage() {
     console.log('[RESCHEDULE] bookingId:', bookingId, 'telegramId:', telegramId, 'date:', date, 'time:', time);
     if (!telegramId) return;
 
-    setRescheduling(true);
-    try {
-      // Сначала получаем актуальные данные о записи
-      const resBookings = await fetch(`${API_BASE}/my-bookings`, {
-        headers: { 'x-telegram-id': String(telegramId) },
-      });
-      const data = await resBookings.json();
-      console.log('[RESCHEDULE] all bookings:', data);
-      const allBookings = [...(data.upcoming || []), ...(data.past || [])];
-      const currentBooking = allBookings.find((b: Booking) => String(b.id) === bookingId);
-      
-      console.log('[RESCHEDULE] currentBooking:', currentBooking);
-      
-      if (!currentBooking) {
-        showAlert('Запись не найдена', 'Возможно, она была удалена или отменена', 'error');
-        setRescheduleBooking(null);
-        setRescheduling(false);
-        return;
-      }
+ setRescheduling(true);
+ try {
+ // Сначала получаем актуальные данные о записи
+ const resBookings = await fetch(`${API_BASE}/my-bookings`, { headers: getApiHeaders() });
+ const data = await resBookings.json();
+ console.log('[RESCHEDULE] all bookings:', data);
+ const allBookings = [...(data.upcoming || []), ...(data.past || [])];
+ const currentBooking = allBookings.find((b: Booking) => String(b.id) === bookingId);
+ 
+ console.log('[RESCHEDULE] currentBooking:', currentBooking);
+ 
+ if (!currentBooking) {
+ showAlert('Запись не найдена', 'Возможно, она была удалена или отменена', 'error');
+ setRescheduleBooking(null);
+ setRescheduling(false);
+ return;
+ }
 
-      const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/reschedule`, {
-        method: 'PATCH',
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-telegram-id': String(telegramId),
-        },
-        body: JSON.stringify({ date, time }),
-      });
+ const res = await fetch(`${API_BASE}/my-bookings/${bookingId}/reschedule`, {
+ method: 'PATCH',
+ headers: { 
+ 'Content-Type': 'application/json',
+ ...getApiHeaders(),
+ },
+ body: JSON.stringify({ date, time }),
+ });
 
       console.log('[RESCHEDULE] response status:', res.status);
       const resData = await res.json();
