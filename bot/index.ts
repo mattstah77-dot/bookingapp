@@ -559,6 +559,8 @@ export function createBot() {
         return;
       }
       
+      const telegramId = ctx.from?.id;
+      
       await ctx.reply(
         '🤖 Создание нового бота для бизнеса\n\n' +
         'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
