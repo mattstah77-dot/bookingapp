@@ -405,7 +405,7 @@ class PostgresDatabase {
     await this.pool.query(
       `INSERT INTO settings (bot_id, key, value) VALUES 
       ($1, 'reminderSettings', '{"enabled": true, "defaultMinutesBefore": 120, "customReminders": []}'),
-      ($1, 'bufferTime', 15)`,
+      ($1, 'bufferTime', '15'::jsonb)`,
       [botId]
     );
 
@@ -436,7 +436,7 @@ class PostgresDatabase {
     await this.pool.query(
       `INSERT INTO settings (bot_id, key, value) VALUES 
       ($1, 'reminderSettings', '{"enabled": true, "defaultMinutesBefore": 120, "customReminders": []}'),
-      ($1, 'bufferTime', 15)`,
+      ($1, 'bufferTime', '15'::jsonb)`,
       [botId]
     );
 
