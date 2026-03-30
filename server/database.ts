@@ -369,6 +369,12 @@ class PostgresDatabase {
     return result.rows[0];
   }
 
+  // Удалить бота по telegram_bot_id
+  async deleteBotByTelegramId(telegramBotId: string): Promise<boolean> {
+    const result = await this.pool.query('DELETE FROM bots WHERE telegram_bot_id = $1', [telegramBotId]);
+    return (result.rowCount ?? 0) > 0;
+  }
+
   // Обновить бота
   async updateBot(id: number, updates: Partial<Bot>): Promise<Bot | null> {
     const fields: string[] = [];

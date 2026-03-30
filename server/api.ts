@@ -589,4 +589,20 @@ router.put('/bots/:id', async (req, res) => {
   }
 });
 
+// Удалить бота по telegram_bot_id (временный эндпоинт для отладки)
+router.delete('/bots/by-telegram-id/:telegramBotId', async (req, res) => {
+  try {
+    const telegramBotId = req.params.telegramBotId;
+    const deleted = await db.deleteBotByTelegramId(telegramBotId);
+    
+    if (deleted) {
+      res.json({ success: true, message: `Bot ${telegramBotId} deleted` });
+    } else {
+      res.status(404).json({ error: 'Bot not found' });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to delete bot' });
+  }
+});
+
 export default router;
