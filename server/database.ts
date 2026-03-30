@@ -327,8 +327,22 @@ class PostgresDatabase {
 
   // ========== МЕТОДЫ ДЛЯ РАБОТЫ С БОТАМИ ==========
   
-  // Создать нового бота
+  // Создать нового бота (или обновить, если уже существует)
   async createBot(bot: Omit<Bot, 'id' | 'createdAt'>): Promise<Bot> {
+    // Проверяем, существует ли бот с таким telegram_bot_id
+    const existing = await this.pool.query('SELECT id FROM bots WHERE telegram_bot_id = $1', [bot.telegramBotId]);
+    
+    if (existing.rows.length > 0) {
+      // Обновляем существующего бота
+      const result = await this.pool.query(
+        `UPDATE bots SET secret_path = $1, bot_token = $2, bot_username = $3, owner_id = $4, owner_name = $5, status = $6, is_active = $7
+         WHERE telegram_bot_id = $8 RETURNING *`,
+        [bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive, bot.telegramBotId]
+      );
+      return result.rows[0];
+    }
+    
+    // Создаём нового бота
     const result = await this.pool.query(
       `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
