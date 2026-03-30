@@ -379,6 +379,13 @@ class PostgresDatabase {
 
   // Seed данные для нового бота
   async seedBotData(botId: number): Promise<void> {
+    // Проверяем, есть ли уже данные для этого бота
+    const existingServices = await this.pool.query('SELECT COUNT(*) as count FROM services WHERE bot_id = $1', [botId]);
+    if (parseInt(existingServices.rows[0].count) > 0) {
+      console.log(`📝 Bot data already exists for bot_id=${botId}, skipping seed`);
+      return;
+    }
+
     // Услуги
     await this.pool.query(
       `INSERT INTO services (bot_id, name, description, duration, price, sort_order, is_active) VALUES
@@ -413,6 +420,13 @@ class PostgresDatabase {
   }
 
   private async seedDefaultData(botId: number): Promise<void> {
+    // Проверяем, есть ли уже данные для этого бота
+    const existingServices = await this.pool.query('SELECT COUNT(*) as count FROM services WHERE bot_id = $1', [botId]);
+    if (parseInt(existingServices.rows[0].count) > 0) {
+      console.log(`📝 Default bot data already exists for bot_id=${botId}, skipping seed`);
+      return;
+    }
+
     await this.pool.query(
       `INSERT INTO services (bot_id, name, description, duration, price, sort_order, is_active) VALUES
       ($1, 'Стрижка', 'Стрижка + укладка', 45, 1500, 1, true),
