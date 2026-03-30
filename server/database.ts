@@ -446,11 +446,12 @@ class PostgresDatabase {
       [botId]
     );
 
-    // Настройки
+    // Настройки - используем ON CONFLICT для защиты от дубликатов
     await this.pool.query(
       `INSERT INTO settings (bot_id, key, value) VALUES 
       ($1, 'reminderSettings', '{"enabled": true, "defaultMinutesBefore": 120, "customReminders": []}'),
-      ($1, 'bufferTime', '15'::jsonb)`,
+      ($1, 'bufferTime', '15'::jsonb)
+      ON CONFLICT DO NOTHING`,
       [botId]
     );
 
@@ -485,10 +486,12 @@ class PostgresDatabase {
       [botId]
     );
 
+    // Настройки - используем ON CONFLICT для защиты от дубликатов
     await this.pool.query(
       `INSERT INTO settings (bot_id, key, value) VALUES 
       ($1, 'reminderSettings', '{"enabled": true, "defaultMinutesBefore": 120, "customReminders": []}'),
-      ($1, 'bufferTime', '15'::jsonb)`,
+      ($1, 'bufferTime', '15'::jsonb)
+      ON CONFLICT DO NOTHING`,
       [botId]
     );
 
