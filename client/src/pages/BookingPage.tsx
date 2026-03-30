@@ -3,6 +3,7 @@ import { useTelegramTheme } from '../hooks/useTelegram';
 import { useBooking } from '../hooks/useBooking';
 import { useTimeSlots } from '../hooks/useTimeSlots';
 import type { Service } from '../types/booking';
+import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import { Greeting } from '../components/Greeting/Greeting';
 import { ServiceCard } from '../components/ServiceCard/ServiceCard';
 import { ServiceModal } from '../components/ServiceModal/ServiceModal';
@@ -13,25 +14,6 @@ import { Button } from '../components/Button/Button';
 import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon } from 'lucide-react';
 
 const API_BASE = '/api';
-
-// Получить bot_id из URL параметров
-function getBotIdFromUrl(): number {
- const params = new URLSearchParams(window.location.search);
- const botIdStr = params.get('bot_id');
- return botIdStr ? parseInt(botIdStr,10) ||1 :1;
-}
-
-// Получить telegramId из Telegram WebApp
-function getTelegramId(): number | undefined {
- return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-}
-
-// Получить bot_id из URL параметров
-function getBotIdFromUrl(): number {
-  const params = new URLSearchParams(window.location.search);
-  const botIdStr = params.get('bot_id');
-  return botIdStr ? parseInt(botIdStr, 10) : 1;
-}
 
 // Общие заголовки для API запросов
 function getApiHeaders(): HeadersInit {
@@ -50,13 +32,6 @@ function getApiHeaders(): HeadersInit {
  }
   
  return headers;
-}
-
-// Получить URL с bot_id
-function getUrlWithBotId(path: string): string {
-  const botId = getBotIdFromUrl();
-  const separator = path.includes('?') ? '&' : '?';
-  return `${path}${separator}bot_id=${botId}`;
 }
 
 export default function BookingPage() {
