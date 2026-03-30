@@ -61,6 +61,9 @@ export async function setupWebhook(botToken: string, secretPath: string): Promis
     const webhookUrl = `${SERVER_URL}/webhook/${secretPath}`;
     const testBot = new Bot(botToken);
     
+    // Инициализируем бота перед установкой webhook
+    await testBot.init();
+    
     await testBot.api.setWebhook(webhookUrl);
     console.log(`✅ Webhook set for ${webhookUrl}`);
     
