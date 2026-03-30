@@ -375,6 +375,24 @@ class PostgresDatabase {
     return (result.rowCount ?? 0) > 0;
   }
 
+  // Очистить все данные бота (services, schedule, settings, bookings, reminders)
+  async clearBotData(telegramBotId: string): Promise<void> {
+    // Получаем id бота
+    const bot = await this.pool.query('SELECT id FROM bots WHERE telegram_bot_id = $1', [telegramBotId]);
+    if (bot.rows.length === 0) return;
+    
+    const botId = bot.rows[0].id;
+    
+    // Удаляем данные
+    await this.pool.query('DELETE FROM bookings WHERE bot_id = $1', [botId]);
+    await this.pool.query('DELETE FROM reminders WHERE bot_id = $1', [botId]);
+    await this.pool.query('DELETE FROM services WHERE bot_id = $1', [botId]);
+    await this.pool.query('DELETE FROM schedule WHERE bot_id = $1', [botId]);
+    await this.pool.query('DELETE FROM settings WHERE bot_id = $1', [botId]);
+    
+    console.log(`🗑 Cleared data for bot_id=${botId} (telegramBotId=${telegramBotId})`);
+  }
+
   // Обновить бота
   async updateBot(id: number, updates: Partial<Bot>): Promise<Bot | null> {
     const fields: string[] = [];
