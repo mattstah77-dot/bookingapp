@@ -26,6 +26,13 @@ function getTelegramId(): number | undefined {
  return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
 }
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+  const params = new URLSearchParams(window.location.search);
+  const botIdStr = params.get('bot_id');
+  return botIdStr ? parseInt(botIdStr, 10) : 1;
+}
+
 // Общие заголовки для API запросов
 function getApiHeaders(): HeadersInit {
  const headers: HeadersInit = {
@@ -43,6 +50,13 @@ function getApiHeaders(): HeadersInit {
  }
   
  return headers;
+}
+
+// Получить URL с bot_id
+function getUrlWithBotId(path: string): string {
+  const botId = getBotIdFromUrl();
+  const separator = path.includes('?') ? '&' : '?';
+  return `${path}${separator}bot_id=${botId}`;
 }
 
 export default function BookingPage() {
@@ -347,7 +361,7 @@ export default function BookingPage() {
             
             {/* Кнопка Мои записи */}
             <a
-              href="/my-bookings"
+              href={getUrlWithBotId('/my-bookings')}
               style={{ 
                 display: 'flex',
                 alignItems: 'center',
@@ -588,7 +602,7 @@ export default function BookingPage() {
           zIndex: 100,
         }}>
           <a
-            href="/admin"
+            href={getUrlWithBotId('/admin')}
             style={{
               display: 'flex',
               alignItems: 'center',
