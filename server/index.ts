@@ -49,7 +49,7 @@ app.post('/webhook', async (req, res) => {
 
 // Telegram webhook endpoint для дочерних ботов (multi-tenant)
 app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedRequest, res) => {
- const bot = req.bot;
+  const bot = req.bot;
   
   if (!bot) {
     res.send('OK');
@@ -57,8 +57,73 @@ app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedR
   }
   
   try {
-    // Динамически создаём бота для обработки обновления
-    const childBot = new Bot(bot.telegramBotId);
+    // Динамически создаём бота с токеном для обработки обновления
+    const childBot = new Bot(bot.botToken);
+    
+    // Инициализируем бота
+    await childBot.init();
+    
+    // Добавляем обработчики команд для дочернего бота
+    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+    const botId = bot.id;
+    
+    childBot.command('start', async (ctx) => {
+      await ctx.reply(
+        'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }],
+              [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
+            ]
+          }
+        }
+      );
+    });
+    
+    childBot.on('callback_query', async (ctx) => {
+      const callbackData = ctx.callbackQuery?.data;
+      if (!callbackData) return;
+      
+      await ctx.answerCallbackQuery();
+      
+      if (callbackData === 'my_bookings_menu') {
+        const telegramId = ctx.from?.id;
+        if (!telegramId) return;
+        
+        // Получаем записи пользователя
+        const upcoming = await db.getUserUpcomingBookings(botId, telegramId);
+        const past = await db.getUserPastBookings(botId, telegramId);
+        
+        if (upcoming.length === 0 && past.length === 0) {
+          await ctx.editMessageText(
+            'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+                ]
+              }
+            }
+          );
+          return;
+        }
+        
+        let text = '📋 Ваши записи\n\n';
+        if (upcoming.length > 0) text += `📅 Предстоящих: ${upcoming.length}\n`;
+        if (past.length > 0) text += `📆 Прошедших: ${past.length}`;
+        
+        await ctx.editMessageText(text, {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📅 Предстоящие', callback_data: `my_bookings_upcoming_${botId}` }],
+              [{ text: '📆 Прошедшие', callback_data: `my_bookings_past_${botId}` }],
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+            ]
+          }
+        });
+      }
+    });
     
     // Обрабатываем обновление
     await childBot.handleUpdate(req.body);
