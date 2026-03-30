@@ -59,6 +59,13 @@ app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedR
   try {
     console.log(`📝 Webhook received for bot ${bot.telegramBotId}, token: ${bot.botToken ? 'present' : 'MISSING'}`);
     
+    // Проверяем что токен есть
+    if (!bot.botToken) {
+      console.error(`❌ No token for bot ${bot.telegramBotId}`);
+      res.send('OK');
+      return;
+    }
+    
     // Динамически создаём бота с токеном для обработки обновления
     const childBot = new Bot(bot.botToken);
     
