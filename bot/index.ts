@@ -1,6 +1,17 @@
 import { Bot, Context, Keyboard } from 'grammy';
+import { session } from 'grammy-session';
 import { db } from '../server/database.js';
 import crypto from 'crypto';
+
+// Тип для сессии
+interface SessionData {
+  waitingForBotToken: boolean;
+}
+
+// Тип, расширяющий контекст
+type MyContext = Context & {
+  session: SessionData;
+};
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
@@ -434,7 +445,14 @@ export function createBot() {
     return null;
   }
 
-  const bot = new Bot(BOT_TOKEN);
+  const bot = new Bot<MyContext>(BOT_TOKEN);
+
+  // Настройка сессий
+  bot.use(session({
+    initial: (): SessionData => ({
+      waitingForBotToken: false,
+    }),
+  }));
 
   // Добавим обработку ошибок
   bot.catch((err) => {
@@ -568,8 +586,8 @@ export function createBot() {
         }
       );
       
-      // Устанавливаем состояние ожидания токена (используем свойство бота для хранения состояния)
-      (ctx as any).waitingForBotToken = true;
+      // Устанавливаем состояние ожидания токена в сессии
+      ctx.session.waitingForBotToken = true;
     } catch (err) {
       console.error('Error in /addbot:', err);
       await ctx.reply('❌ Произошла ошибка');
@@ -834,12 +852,12 @@ export function createBot() {
   });
 
   // Обработка текстовых сообщений (для токена бота)
-  bot.on('message:text', async (ctx: Context) => {
+  bot.on('message:text', async (ctx: MyContext) => {
     const text = ctx.message?.text;
     const telegramId = ctx.from?.id;
     
-    // Проверяем, ждём ли мы токен бота (используем свойство контекста)
-    if ((ctx as any).waitingForBotToken && text && telegramId) {
+    // Проверяем, ждём ли мы токен бота (используем сессию)
+    if (ctx.session.waitingForBotToken && text && telegramId) {
       const botToken = text.trim();
       
       // Проверяем формат токена
@@ -881,14 +899,12 @@ export function createBot() {
       }
       
       // Сбрасываем состояние
-      (ctx as any).waitingForBotToken = false;
+      ctx.session.waitingForBotToken = false;
       return;
     }
     
-    // Обычные сообщения
-    if (text) {
-      await ctx.reply('Я получил ваше сообщение: ' + text);
-    }
+    // Обычные сообщения - не отвечаем на произвольный текст
+    // await ctx.reply('Я получил ваше сообщение: ' + text);
   });
 
   return bot;
