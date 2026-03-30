@@ -8,11 +8,13 @@ export interface BotInfo {
  telegramBotId: string;
  secretPath: string;
  isActive: boolean;
+ botToken?: string; // Токен для webhook обработки
  // Поля из БД (snake_case) - для совместимости
  owner_id?: number;
  telegram_bot_id?: string;
  secret_path?: string;
  is_active?: boolean;
+ bot_token?: string;
  // Для обратной совместимости - можно использовать любое
  [key: string]: any;
 }
@@ -164,6 +166,7 @@ export async function webhookBotResolver(req: AuthenticatedRequest, res: Respons
       telegramBotId: bot.telegram_bot_id ?? '',
       secretPath: bot.secret_path ?? '',
       isActive: bot.is_active ?? false,
+      botToken: bot.bot_token ?? '', // Используем snake_case для поля из PostgreSQL
     };
     
     next();
