@@ -101,10 +101,7 @@ export async function createChildBot(
       return { success: false, error: webhookResult.error || 'Failed to setup webhook' };
     }
     
-    // 4. Очищаем старые данные если бот уже был
-    await db.clearBotData(validation.bot.id);
-    
-    // 5. Создаём запись в БД
+    // 4. Создаём запись в БД
     const bot = await db.createBot({
       telegramBotId: validation.bot.id,
       secretPath: secretPath,
@@ -115,6 +112,9 @@ export async function createChildBot(
       isActive: true,
       status: 'success',
     });
+    
+    // 5. Очищаем старые данные если бот уже был (после createBot, чтобы получить правильный bot.id)
+    await db.clearBotData(validation.bot.id);
     
     // 6. Seed данные для нового бота
     await db.seedBotData(bot.id);
