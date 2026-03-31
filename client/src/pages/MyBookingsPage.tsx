@@ -199,7 +199,28 @@ function RescheduleModal({
  try {
  const dateStr = `${selectedDate.getFullYear()}-${String(selectedDate.getMonth() +1).padStart(2, '0')}-${String(selectedDate.getDate()).padStart(2, '0')}`;
  const res = await fetch(`${API_BASE}/slots?date=${dateStr}&duration=${booking.duration}`, { headers: getApiHeaders() });
- const slots = await res.json();
+ let slots = await res.json();
+
+ // Фильтруем прошедшие слоты для сегодняшнего дня
+ const today = new Date();
+ today.setHours(0, 0, 0, 0);
+ const selectedDay = new Date(selectedDate);
+ selectedDay.setHours(0, 0, 0, 0);
+
+ if (selectedDay.getTime() === today.getTime()) {
+   const now = new Date();
+   const currentHours = now.getHours();
+   const currentMinutes = now.getMinutes();
+   const currentTimeInMinutes = currentHours * 60 + currentMinutes;
+
+   slots = slots.filter((slot: string) => {
+     const [slotHours, slotMinutes] = slot.split(':').map(Number);
+     const slotTimeInMinutes = slotHours * 60 + slotMinutes;
+     // Добавляем небольшой буфер (15 минут), чтобы не дать выбрать слот, который уже начался
+     return slotTimeInMinutes > currentTimeInMinutes + 15;
+   });
+ }
+
  setAvailableSlots(slots);
  } catch (err) {
  console.error('Failed to fetch slots:', err);
