@@ -11,6 +11,7 @@ import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
+import { ThemeToggle } from '../components/ThemeToggle/ThemeToggle';
 import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon } from 'lucide-react';
 
 const API_BASE = '/api';
@@ -35,7 +36,9 @@ function getApiHeaders(): HeadersInit {
 }
 
 export default function BookingPage() {
-  const theme = useTelegramTheme();
+  const telegramTheme = useTelegramTheme();
+  const theme = { bgColor: telegramTheme.bgColor, textColor: telegramTheme.textColor, buttonColor: telegramTheme.buttonColor, buttonTextColor: telegramTheme.buttonTextColor, hintColor: telegramTheme.hintColor, linkColor: telegramTheme.linkColor };
+  const { themeMode, setThemeMode } = telegramTheme;
   const [services, setServices] = useState<Service[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -339,36 +342,44 @@ export default function BookingPage() {
           <>
             <Greeting />
             
-            {/* Кнопка Мои записи */}
-            <a
-              href={getUrlWithBotId('/my-bookings')}
-              style={{ 
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                marginBottom: '20px',
-                padding: '12px 20px',
-                borderRadius: '14px',
-                background: isDark 
-                  ? 'rgba(255,255,255,0.08)' 
-                  : 'rgba(0,0,0,0.04)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
-                color: theme.hintColor,
-                fontSize: '14px',
-                fontWeight: 500,
-                textDecoration: 'none',
-              }}
-            >
-              <CalendarIcon size={18} />
-              Мои записи
-            </a>
+            {/* Кнопка Мои записи и переключатель темы */}
+            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+              <a
+                href={getUrlWithBotId('/my-bookings')}
+                style={{ 
+                  flex: 1,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  padding: '12px 20px',
+                  borderRadius: '14px',
+                  background: isDark 
+                    ? 'rgba(255,255,255,0.08)' 
+                    : 'rgba(0,0,0,0.04)',
+                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+                  color: theme.hintColor,
+                  fontSize: '14px',
+                  fontWeight: 500,
+                  textDecoration: 'none',
+                }}
+              >
+                <CalendarIcon size={18} />
+                Мои записи
+              </a>
+              <ThemeToggle
+                themeMode={themeMode}
+                setThemeMode={setThemeMode}
+                theme={theme}
+                isDark={isDark}
+              />
+            </div>
           </>
         )}
 
         {/* Навигация назад */}
         {step !== 'services' && <BackButton onClick={goBack} />}
-
+        
         {/* Сообщение об ошибке */}
         {error && (
           <div 
