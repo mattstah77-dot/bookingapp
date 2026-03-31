@@ -360,9 +360,7 @@ export default function BookingPage() {
                 Мои записи
               </a>
               <ThemeToggle
-                themeMode={themeMode}
                 setThemeMode={setThemeMode}
-                theme={theme}
                 isDark={isDark}
               />
             </div>

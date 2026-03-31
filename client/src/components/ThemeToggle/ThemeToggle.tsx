@@ -1,17 +1,11 @@
 import { Sun, Moon } from 'lucide-react';
 
 interface ThemeToggleProps {
-  themeMode: 'light' | 'dark';
   setThemeMode: (mode: 'light' | 'dark') => void;
-  theme: {
-    buttonColor: string;
-    textColor: string;
-    hintColor: string;
-  };
   isDark: boolean;
 }
 
-export function ThemeToggle({ themeMode, setThemeMode, theme, isDark }: ThemeToggleProps) {
+export function ThemeToggle({ setThemeMode, isDark }: ThemeToggleProps) {
   const toggleTheme = () => {
     setThemeMode(isDark ? 'light' : 'dark');
   };
