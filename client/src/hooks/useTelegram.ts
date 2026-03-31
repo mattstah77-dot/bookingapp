@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
-// Светлая тема (текущая)
+// Светлая тема
 const lightTheme: TelegramTheme = {
   bgColor: '#ffffff',
   textColor: '#0f172a',
@@ -11,9 +11,9 @@ const lightTheme: TelegramTheme = {
   linkColor: '#3b82f6',
 };
 
-// Тёмная тема
+// Тёмная тема (инверсия светлой)
 const darkTheme: TelegramTheme = {
-  bgColor: '#0f0f0f',
+  bgColor: '#0f172a',
   textColor: '#f8fafc',
   buttonColor: '#3b82f6',
   buttonTextColor: '#ffffff',
@@ -21,67 +21,34 @@ const darkTheme: TelegramTheme = {
   linkColor: '#60a5fa',
 };
 
-type ThemeMode = 'light' | 'dark' | 'system';
-
-function getSystemTheme(): 'light' | 'dark' {
-  if (typeof window !== 'undefined' && window.matchMedia) {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+function getStoredTheme(): 'light' | 'dark' {
+  if (typeof window !== 'undefined') {
+    const stored = localStorage.getItem('app_theme');
+    if (stored === 'light' || stored === 'dark') {
+      return stored;
+    }
   }
   return 'light';
 }
 
-function getStoredTheme(): ThemeMode {
-  if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('app_theme');
-    if (stored === 'light' || stored === 'dark' || stored === 'system') {
-      return stored;
-    }
-  }
-  return 'system';
-}
+export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark'; setThemeMode: (mode: 'light' | 'dark') => void; isDark: boolean } {
+  const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getStoredTheme);
 
-export function useTelegramTheme(): TelegramTheme & { themeMode: ThemeMode; setThemeMode: (mode: ThemeMode) => void } {
-  const [themeMode, setThemeModeState] = useState<ThemeMode>(getStoredTheme);
+  const isDark = themeMode === 'dark';
+  const currentTheme = isDark ? darkTheme : lightTheme;
 
-  const resolveTheme = (): TelegramTheme => {
-    if (themeMode === 'system') {
-      return getSystemTheme() === 'dark' ? darkTheme : lightTheme;
-    }
-    return themeMode === 'dark' ? darkTheme : lightTheme;
-  };
-
-  const [currentTheme, setCurrentTheme] = useState<TelegramTheme>(resolveTheme);
-
-  // Обновляем тему при изменении mode или системной темы
-  useEffect(() => {
-    const updateTheme = () => {
-      setCurrentTheme(resolveTheme());
-    };
-
-    updateTheme();
-
-    // Слушаем изменение системной темы
-    if (themeMode === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => updateTheme();
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    }
-  }, [themeMode]);
-
-  const setThemeMode = (mode: ThemeMode) => {
+  const setThemeMode = (mode: 'light' | 'dark') => {
     setThemeModeState(mode);
     localStorage.setItem('app_theme', mode);
-    setCurrentTheme(mode === 'system' ? (getSystemTheme() === 'dark' ? darkTheme : lightTheme) : (mode === 'dark' ? darkTheme : lightTheme));
   };
 
-  return { ...currentTheme, themeMode, setThemeMode };
+  return { ...currentTheme, themeMode, setThemeMode, isDark };
 }
 
-// Функция для использования темы без переключателя (для обратной совместимости)
+// Функция для обратной совместимости
 export function useTheme(): TelegramTheme {
   const theme = useTelegramTheme();
-  const { themeMode, setThemeMode, ...rest } = theme;
+  const { themeMode, setThemeMode, isDark, ...rest } = theme;
   return rest;
 }
 

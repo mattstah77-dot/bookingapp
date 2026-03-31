@@ -38,21 +38,13 @@ function getApiHeaders(): HeadersInit {
 export default function BookingPage() {
   const telegramTheme = useTelegramTheme();
   const theme = { bgColor: telegramTheme.bgColor, textColor: telegramTheme.textColor, buttonColor: telegramTheme.buttonColor, buttonTextColor: telegramTheme.buttonTextColor, hintColor: telegramTheme.hintColor, linkColor: telegramTheme.linkColor };
-  const { themeMode, setThemeMode } = telegramTheme;
+  const { themeMode, setThemeMode, isDark } = telegramTheme;
   const [services, setServices] = useState<Service[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [selectedServiceForModal, setSelectedServiceForModal] = useState<Service | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
 
   const {
     selectedService,
