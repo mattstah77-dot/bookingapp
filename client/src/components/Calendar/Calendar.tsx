@@ -11,13 +11,7 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
   const theme = useTelegramTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const today = useMemo(() => {
     const now = new Date();

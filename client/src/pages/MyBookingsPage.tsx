@@ -181,13 +181,7 @@ function RescheduleModal({
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
  // Загрузка слотов при выборе даты
  useEffect(() => {
@@ -380,13 +374,7 @@ interface BookingCardProps {
 function BookingCard({ booking, isPast = false, onCancel, onReschedule, cancelling }: BookingCardProps) {
   const theme = useTelegramTheme();
   
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const isCancelled = ['cancelled', 'cancelled_by_user', 'cancelled_by_admin'].includes(booking.status);
   const isUpcoming = !isPast && !isCancelled;
@@ -548,13 +536,7 @@ export default function MyBookingsPage() {
     setAlertState({ isOpen: true, title, message, type: 'warning', confirmText: 'Да', cancelText: 'Отмена', onConfirm });
   };
 
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
  // Загрузка записей
  useEffect(() => {

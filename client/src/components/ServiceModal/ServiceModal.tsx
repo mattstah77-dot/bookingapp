@@ -17,13 +17,7 @@ export function ServiceModal({ service, onSelect, onClose }: ServiceModalProps) 
   // В будущем здесь будут реальные изображения
   const images: string[] = []; // Добавить URL изображений when админ загрузит
   
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const handleBackdropClick = (e: React.MouseEvent) => {
     if (e.target === e.currentTarget) {

@@ -61,13 +61,7 @@ function SortableServiceCard({
 }) {
   const theme = useTelegramTheme();
   
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const photos = service.photos;
   const hasPhotos = Array.isArray(photos) && photos.length > 0 && photos[0];

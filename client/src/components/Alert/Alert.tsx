@@ -40,13 +40,7 @@ export function Alert({
 
   if (!isVisible && !isOpen) return null;
 
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const colors = {
     success: { bg: 'rgba(34, 197, 94, 0.15)', color: '#22c55e', icon: CheckCircle },

@@ -19,13 +19,7 @@ export function TimeSlots({
   const theme = useTelegramTheme();
   const scrollRef = useRef<HTMLDivElement>(null);
   
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {

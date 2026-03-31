@@ -149,13 +149,7 @@ export default function AdminPage() {
     window.location.href = getUrlWithBotId('/');
   };
 
-  const isDark = (() => {
-    const bg = theme.bgColor;
-    if (!bg || bg === '#ffffff') return false;
-    const hex = bg.replace('#', '');
-    if (hex.length !== 6) return false;
-    return parseInt(hex, 16) < 128000;
-  })();
+  const isDark = theme.bgColor !== '#ffffff';
 
   // Проверка аутентификации при загрузке
   useEffect(() => {

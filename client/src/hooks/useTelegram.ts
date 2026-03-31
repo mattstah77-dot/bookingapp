@@ -11,7 +11,7 @@ const lightTheme: TelegramTheme = {
   linkColor: '#3b82f6',
 };
 
-// Тёмная тема (инверсия светлой)
+// Тёмная тема (инверсия)
 const darkTheme: TelegramTheme = {
   bgColor: '#0f172a',
   textColor: '#f8fafc',
@@ -27,6 +27,23 @@ function getStoredTheme(): 'light' | 'dark' {
     if (stored === 'light' || stored === 'dark') {
       return stored;
     }
+  }
+  return 'light';
+}
+
+export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark'; setThemeMode: (mode: 'light' | 'dark') => void; isDark: boolean } {
+  const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getStoredTheme);
+
+  const isDark = themeMode === 'dark';
+  const currentTheme = isDark ? darkTheme : lightTheme;
+
+  const setThemeMode = (mode: 'light' | 'dark') => {
+    setThemeModeState(mode);
+    localStorage.setItem('app_theme', mode);
+  };
+
+  return { ...currentTheme, themeMode, setThemeMode, isDark };
+}
   }
   return 'light';
 }
