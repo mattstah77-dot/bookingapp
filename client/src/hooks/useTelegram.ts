@@ -38,9 +38,13 @@ export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark
   const currentTheme = isDark ? darkTheme : lightTheme;
 
   const setThemeMode = (mode: 'light' | 'dark') => {
+    console.log('[Theme] Switching to:', mode);
     setThemeModeState(mode);
     localStorage.setItem('app_theme', mode);
+    console.log('[Theme] After setThemeMode, themeMode is:', mode);
   };
+
+  console.log('[Theme] Render, themeMode:', themeMode, 'isDark:', isDark, 'bgColor:', currentTheme.bgColor);
 
   return { ...currentTheme, themeMode, setThemeMode, isDark };
 }

@@ -9,6 +9,7 @@ interface ThemeToggleProps {
 
 export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor }: ThemeToggleProps) {
   const toggleTheme = () => {
+    console.log('[ThemeToggle] Current isDark:', isDark, 'Switching to:', isDark ? 'light' : 'dark');
     setThemeMode(isDark ? 'light' : 'dark');
   };
 
