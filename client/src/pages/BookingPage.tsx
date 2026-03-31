@@ -36,8 +36,9 @@ function getApiHeaders(): HeadersInit {
 }
 
 export default function BookingPage() {
-  const telegramTheme = useTelegramTheme();
-  const { setThemeMode, isDark, ...theme } = telegramTheme;
+  const theme = useTelegramTheme();
+  const isDark = theme.bgColor !== '#ffffff';
+  const setThemeMode = theme.setThemeMode;
   const [services, setServices] = useState<Service[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
