@@ -3,9 +3,11 @@ import { Sun, Moon } from 'lucide-react';
 interface ThemeToggleProps {
   setThemeMode: (mode: 'light' | 'dark') => void;
   isDark: boolean;
+  buttonColor: string;
+  hintColor: string;
 }
 
-export function ThemeToggle({ setThemeMode, isDark }: ThemeToggleProps) {
+export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor }: ThemeToggleProps) {
   const toggleTheme = () => {
     setThemeMode(isDark ? 'light' : 'dark');
   };
@@ -28,9 +30,9 @@ export function ThemeToggle({ setThemeMode, isDark }: ThemeToggleProps) {
       title={isDark ? 'Светлая тема' : 'Тёмная тема'}
     >
       {isDark ? (
-        <Sun size={20} style={{ color: theme.buttonColor }} />
+        <Sun size={20} style={{ color: buttonColor }} />
       ) : (
-        <Moon size={20} style={{ color: theme.hintColor }} />
+        <Moon size={20} style={{ color: hintColor }} />
       )}
     </button>
   );
