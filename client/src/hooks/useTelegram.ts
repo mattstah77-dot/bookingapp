@@ -44,30 +44,6 @@ export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark
 
   return { ...currentTheme, themeMode, setThemeMode, isDark };
 }
-  }
-  return 'light';
-}
-
-export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark'; setThemeMode: (mode: 'light' | 'dark') => void; isDark: boolean } {
-  const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getStoredTheme);
-
-  const isDark = themeMode === 'dark';
-  const currentTheme = isDark ? darkTheme : lightTheme;
-
-  const setThemeMode = (mode: 'light' | 'dark') => {
-    setThemeModeState(mode);
-    localStorage.setItem('app_theme', mode);
-  };
-
-  return { ...currentTheme, themeMode, setThemeMode, isDark };
-}
-
-// Функция для обратной совместимости
-export function useTheme(): TelegramTheme {
-  const theme = useTelegramTheme();
-  const { themeMode, setThemeMode, isDark, ...rest } = theme;
-  return rest;
-}
 
 export function getGreeting(): string {
   const hour = new Date().getHours();
