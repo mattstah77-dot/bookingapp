@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
+import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import { Alert } from '../components/Alert/Alert';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
@@ -59,23 +60,16 @@ interface Service {
 
 const API_BASE = '/api';
 
-// Получить bot_id из URL параметров
-function getBotIdFromUrl(): number {
- const params = new URLSearchParams(window.location.search);
- const botIdStr = params.get('bot_id');
- return botIdStr ? parseInt(botIdStr,10) ||1 :1;
-}
-
-function getTelegramId(): number | undefined {
- return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-}
-
+// Получить пароль админа для конкретного бота
 function getStoredPassword(): string | null {
-  return localStorage.getItem('admin_password');
+  const botId = getBotIdFromUrl();
+  return localStorage.getItem(`admin_password_bot_${botId}`);
 }
 
+// Сохранить пароль админа для конкретного бота
 function setStoredPassword(password: string): void {
-  localStorage.setItem('admin_password', password);
+  const botId = getBotIdFromUrl();
+  localStorage.setItem(`admin_password_bot_${botId}`, password);
 }
 
 function getAuthHeaders(): HeadersInit {
@@ -117,6 +111,7 @@ export default function AdminPage() {
     defaultMinutesBefore: 120,
     customReminders: [],
   });
+  const [maxActiveBookings, setMaxActiveBookings] = useState(2);
   const [savingSettings, setSavingSettings] = useState(false);
 
   // Модальное окно редактирования услуги
@@ -149,9 +144,9 @@ export default function AdminPage() {
     setAlertState({ isOpen: true, title, message, type: 'warning', confirmText: 'Да', cancelText: 'Отмена', onConfirm });
   };
 
-  // Функция возврата на главную
+  // Функция возврата на главную с сохранением bot_id
   const goBack = () => {
-    window.location.href = '/';
+    window.location.href = getUrlWithBotId('/');
   };
 
   const isDark = (() => {
@@ -228,15 +223,22 @@ export default function AdminPage() {
     fetchBookings();
   }, [selectedDate]);
 
-  // Загрузка настроек напоминаний
+  // Загрузка настроек напоминаний и лимита бронирований
   useEffect(() => {
     const fetchSettings = async () => {
       try {
+        // Загрузка настроек напоминаний
         const settingsRes = await fetch(`${API_BASE}/admin/reminder-settings`, { headers: getAuthHeaders() });
-        
         if (settingsRes.ok) {
           const settingsData = await settingsRes.json();
           setReminderSettings(settingsData);
+        }
+
+        // Загрузка лимита бронирований
+        const limitRes = await fetch(`${API_BASE}/admin/booking-limit`, { headers: getAuthHeaders() });
+        if (limitRes.ok) {
+          const limitData = await limitRes.json();
+          setMaxActiveBookings(limitData.maxActiveBookings || 2);
         }
       } catch (err) {
         console.error('Failed to fetch settings:', err);
@@ -478,14 +480,22 @@ export default function AdminPage() {
   const handleSaveReminderSettings = async () => {
     setSavingSettings(true);
     try {
-      const res = await fetch(`${API_BASE}/admin/reminder-settings`, {
+      // Сохраняем настройки напоминаний
+      const settingsRes = await fetch(`${API_BASE}/admin/reminder-settings`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify(reminderSettings),
       });
       
-      if (res.ok) {
-        showAlert('Сохранено', 'Настройки напоминаний сохранены', 'success');
+      // Сохраняем лимит бронирований
+      const limitRes = await fetch(`${API_BASE}/admin/booking-limit`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ maxActiveBookings }),
+      });
+
+      if (settingsRes.ok && limitRes.ok) {
+        showAlert('Сохранено', 'Настройки сохранены', 'success');
       } else {
         showAlert('Ошибка', 'Не удалось сохранить настройки', 'error');
       }
@@ -825,6 +835,87 @@ export default function AdminPage() {
               </div>
             </div>
 
+            {/* Лимит активных бронирований */}
+            <div 
+              className="glass-card"
+              style={{ 
+                borderRadius: '20px',
+                padding: '24px',
+                background: isDark 
+                  ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                  : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                backdropFilter: 'blur(20px)',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                <CalendarDays size={20} style={{ color: theme.buttonColor }} />
+                <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: 0 }}>
+                  Лимит записей для клиента
+                </h3>
+              </div>
+              
+              <p style={{ color: theme.hintColor, fontSize: '13px', margin: '0 0 16px 0' }}>
+                Максимальное количество активных записей, которое один клиент может иметь одновременно
+              </p>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <button
+                  onClick={() => setMaxActiveBookings(prev => Math.max(1, prev - 1))}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                    background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                    color: theme.textColor,
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  -
+                </button>
+                <div 
+                  style={{ 
+                    flex: 1,
+                    textAlign: 'center',
+                    padding: '12px',
+                    borderRadius: '12px',
+                    background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                    border: `1px solid ${theme.buttonColor}30`,
+                  }}
+                >
+                  <span style={{ color: theme.textColor, fontSize: '24px', fontWeight: 700 }}>
+                    {maxActiveBookings}
+                  </span>
+                  <span style={{ color: theme.hintColor, fontSize: '14px', marginLeft: '8px' }}>
+                    {maxActiveBookings === 1 ? 'запись' : maxActiveBookings <= 4 ? 'записи' : 'записей'}
+                  </span>
+                </div>
+                <button
+                  onClick={() => setMaxActiveBookings(prev => Math.min(10, prev + 1))}
+                  style={{
+                    width: '40px',
+                    height: '40px',
+                    borderRadius: '12px',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                    background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                    color: theme.textColor,
+                    fontSize: '20px',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
             {/* Кнопка сохранения */}
             <button
               onClick={handleSaveReminderSettings}
@@ -912,7 +1003,7 @@ export default function AdminPage() {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '14px', marginBottom: '28px' }}>
           <div 
             className="glass-card"
-            style={{ 
+            style={{
               borderRadius: '22px',
               padding: '22px',
               background: isDark 
@@ -946,7 +1037,7 @@ export default function AdminPage() {
           
           <div 
             className="glass-card"
-            style={{ 
+            style={{
               borderRadius: '22px',
               padding: '22px',
               background: isDark 

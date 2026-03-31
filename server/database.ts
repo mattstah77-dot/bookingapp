@@ -769,6 +769,35 @@ class PostgresDatabase {
     return result.rows;
   }
 
+  // Получить количество активных (предстоящих) записей пользователя
+  async getUserActiveBookingsCount(botId: number, telegramId: number): Promise<number> {
+    const today = new Date().toISOString().split('T')[0];
+    const result = await this.pool.query(
+      `SELECT COUNT(*) as count FROM bookings 
+       WHERE bot_id = $1 AND telegram_id = $2 AND date >= $3 AND status = 'confirmed'`,
+      [botId, telegramId, today]
+    );
+    return parseInt(result.rows[0]?.count || '0');
+  }
+
+  // Получить лимит активных броней
+  async getMaxActiveBookings(botId: number): Promise<number> {
+    const result = await this.pool.query(
+      "SELECT value FROM settings WHERE bot_id = $1 AND key = 'maxActiveBookings'",
+      [botId]
+    );
+    if (result.rows.length === 0) return 2; // По умолчанию 2
+    return typeof result.rows[0].value === 'number' ? result.rows[0].value : 2;
+  }
+
+  // Установить лимит активных броней
+  async setMaxActiveBookings(botId: number, limit: number): Promise<void> {
+    await this.pool.query(
+      "INSERT INTO settings (bot_id, key, value) VALUES ($1, 'maxActiveBookings', $2) ON CONFLICT (bot_id, key) DO UPDATE SET value = $2",
+      [botId, limit]
+    );
+  }
+
   // Settings (с bot_id)
   async getReminderSettings(botId: number): Promise<ReminderSettings> {
     const result = await this.pool.query("SELECT value FROM settings WHERE bot_id = $1 AND key = 'reminderSettings'", [botId]);

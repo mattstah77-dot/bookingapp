@@ -160,7 +160,12 @@ export default function BookingPage() {
         selectSlot(null); // Сбрасываем выбранный слот
         refetchSlots(); // Обновляем список слотов
         goBack(); // Возвращаем на экран выбора времени
-      } else {
+      }
+      // Если превышен лимит активных бронирований
+      else if (errorMessage.includes('Maximum number of active bookings reached')) {
+        setError('У вас уже есть максимальное количество активных записей. Отмените или перенесите текущую запись, чтобы создать новую.');
+      }
+      else {
         setError(errorMessage);
       }
     } finally {

@@ -130,10 +130,27 @@ router.get('/schedule', botFilter, async (req: AuthenticatedRequest, res) => {
 router.post('/bookings', botFilter, async (req: AuthenticatedRequest, res) => {
   try {
     const botId = getBotId(req);
-    const { serviceId, serviceName, date, time, duration, price, clientName, clientPhone, telegramId } = req.body;
-
+    const telegramId = getTelegramId(req);
+    const { serviceId, serviceName, date, time, duration, price, clientName, clientPhone } = req.body;
+    
     if (!serviceId || !date || !time || !duration || !price) {
       return res.status(400).json({ error: 'Missing required fields' });
+    }
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'Telegram ID is required' });
+    }
+    
+    // Проверяем лимит активных бронирований
+    const maxActiveBookings = await db.getMaxActiveBookings(botId);
+    const currentBookingsCount = await db.getUserActiveBookingsCount(botId, telegramId);
+
+    if (currentBookingsCount >= maxActiveBookings) {
+      return res.status(403).json({
+        error: 'Maximum number of active bookings reached',
+        limit: maxActiveBookings,
+        current: currentBookingsCount,
+      });
     }
     
     // Проверяем, что слот ещё доступен
@@ -153,7 +170,7 @@ router.post('/bookings', botFilter, async (req: AuthenticatedRequest, res) => {
       clientPhone,
       telegramId,
     });
-
+    
     res.status(201).json(booking);
   } catch (error: any) {
     console.error('Booking error:', error);
@@ -507,6 +524,34 @@ router.put('/admin/reminder-settings', botFilter, requireOwner, async (req: Auth
     res.json(settings);
   } catch (error) {
     res.status(500).json({ error: 'Failed to update reminder settings' });
+  }
+});
+
+// Получить лимит активных бронирований
+router.get('/admin/booking-limit', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+    const limit = await db.getMaxActiveBookings(botId);
+    res.json({ maxActiveBookings: limit });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch booking limit' });
+  }
+});
+
+// Установить лимит активных бронирований
+router.put('/admin/booking-limit', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+    const { maxActiveBookings } = req.body;
+    
+    if (typeof maxActiveBookings !== 'number' || maxActiveBookings < 1 || maxActiveBookings > 100) {
+      return res.status(400).json({ error: 'Limit must be between 1 and 100' });
+    }
+    
+    await db.setMaxActiveBookings(botId, maxActiveBookings);
+    res.json({ maxActiveBookings });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update booking limit' });
   }
 });
 

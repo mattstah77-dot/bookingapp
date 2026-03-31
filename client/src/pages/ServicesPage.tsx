@@ -25,8 +25,21 @@ import { CSS } from '@dnd-kit/utilities';
 
 const API_BASE = '/api';
 
+// Получить bot_id из URL параметров
+function getBotIdFromUrl(): number {
+  const params = new URLSearchParams(window.location.search);
+  const botIdStr = params.get('bot_id');
+  return botIdStr ? parseInt(botIdStr, 10) || 1 : 1;
+}
+
+// Получить пароль админа для конкрет бота
+function getStoredPassword(): string | null {
+  const botId = getBotIdFromUrl();
+  return localStorage.getItem(`admin_password_bot_${botId}`);
+}
+
 function getAuthHeaders(): HeadersInit {
-  const password = localStorage.getItem('admin_password');
+  const password = getStoredPassword();
   const tgId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
   const headers: HeadersInit = {};
   if (password) headers['x-admin-password'] = password;

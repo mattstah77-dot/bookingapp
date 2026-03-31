@@ -1,23 +1,12 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
+import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import type { Booking } from '../types/booking';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Alert } from '../components/Alert/Alert';
 import { Calendar as CalendarIcon, Clock, Scissors, X, CalendarDays, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_BASE = '/api';
-
-// Получить bot_id из URL параметров
-function getBotIdFromUrl(): number {
- const params = new URLSearchParams(window.location.search);
- const botIdStr = params.get('bot_id');
- return botIdStr ? parseInt(botIdStr,10) ||1 :1;
-}
-
-// Получить telegramId из Telegram WebApp
-function getTelegramId(): number | undefined {
- return window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-}
 
 // Общие заголовки для API запросов
 function getApiHeaders(): HeadersInit {
@@ -699,7 +688,7 @@ export default function MyBookingsPage() {
       }}
     >
       <div style={{ maxWidth: '440px', margin: '0 auto' }}>
-        <BackButton onClick={() => window.history.back()} />
+        <BackButton onClick={() => window.location.href = getUrlWithBotId('/')} />
 
         {/* Заголовок */}
         <h1 style={{ 
