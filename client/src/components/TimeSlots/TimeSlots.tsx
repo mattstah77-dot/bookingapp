@@ -1,6 +1,6 @@
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { Clock } from 'lucide-react';
-import { useRef } from 'react';
+import { useRef, memo } from 'react';
 import type { TimeSlot } from '../../utils/timeSlots';
 
 interface TimeSlotsProps {
@@ -10,7 +10,7 @@ interface TimeSlotsProps {
   loading?: boolean;
 }
 
-export function TimeSlots({ 
+export const TimeSlots = memo(function TimeSlots({ 
   slots, 
   selectedSlot, 
   onSlotSelect, 
@@ -179,4 +179,4 @@ export function TimeSlots({
       `}</style>
     </div>
   );
-}
+});

@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { ArrowLeft } from 'lucide-react';
 
@@ -5,7 +6,7 @@ interface BackButtonProps {
   onClick: () => void;
 }
 
-export function BackButton({ onClick }: BackButtonProps) {
+export const BackButton = memo(function BackButton({ onClick }: BackButtonProps) {
   const theme = useTelegramTheme();
   
   const isDark = theme.bgColor !== '#ffffff';
@@ -31,4 +32,4 @@ export function BackButton({ onClick }: BackButtonProps) {
       <span style={{ fontSize: '15px', fontWeight: 600 }}>Назад</span>
     </button>
   );
-}
+});

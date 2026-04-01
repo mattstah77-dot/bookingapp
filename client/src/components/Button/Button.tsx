@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 
@@ -8,7 +9,7 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   children: ReactNode;
 }
 
-export function Button({
+export const Button = memo(function Button({
   variant = 'primary',
   size = 'md',
   loading = false,
@@ -21,13 +22,8 @@ export function Button({
   const theme = useTelegramTheme();
   const isDark = theme.bgColor !== '#ffffff';
 
-  const sizes = {
-    sm: 'px-5 py-3 text-sm h-10',
-    md: 'px-7 py-4 text-base h-12',
-    lg: 'px-9 py-5 text-lg h-14',
-  };
-
-  const getVariantStyles = () => {
+  // Мемоизируем variant styles - НЕ создаём объект при каждом рендере
+  const variantStyles = useMemo(() => {
     switch (variant) {
       case 'primary':
         return {
@@ -57,26 +53,31 @@ export function Button({
       default:
         return {};
     }
-  };
+  }, [variant, theme.buttonColor, theme.buttonTextColor, theme.textColor, theme.hintColor, isDark]);
+
+  // Мемоизируем base styles
+  const baseStyles = useMemo(() => ({
+    borderRadius: '18px',
+    fontWeight: 600,
+    fontSize: size === 'sm' ? '14px' : size === 'lg' ? '18px' : '16px',
+    letterSpacing: '0.3px',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    cursor: disabled ? 'not-allowed' : 'pointer',
+    opacity: disabled ? 0.5 : 1,
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    touchAction: 'manipulation',
+  }), [disabled, size]);
 
   return (
     <button
-      className={`${sizes[size]} btn-press`}
+      className={`btn-press ${size === 'sm' ? 'px-5 py-3 text-sm h-10' : size === 'lg' ? 'px-9 py-5 text-lg h-14' : 'px-7 py-4 text-base h-12'} ${className}`}
       disabled={disabled || loading}
       style={{
-        ...getVariantStyles(),
+        ...variantStyles,
+        ...baseStyles,
         ...style,
-        borderRadius: '18px',
-        fontWeight: 600,
-        fontSize: size === 'sm' ? '14px' : size === 'lg' ? '18px' : '16px',
-        letterSpacing: '0.3px',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        opacity: disabled ? 0.5 : 1,
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        touchAction: 'manipulation',
       }}
       {...props}
     >
@@ -103,4 +104,4 @@ export function Button({
       {children}
     </button>
   );
-}
+});

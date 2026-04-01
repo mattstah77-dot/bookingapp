@@ -1,7 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
-// Светлая тема
+// Светлая тема - КОНСТАНТА (не создаётся повторно)
 const lightTheme: TelegramTheme = {
   bgColor: '#ffffff',
   textColor: '#0f172a',
@@ -11,7 +11,7 @@ const lightTheme: TelegramTheme = {
   linkColor: '#3b82f6',
 };
 
-// Тёмная тема
+// Тёмная тема - КОНСТАНТА (не создаётся повторно)
 const darkTheme: TelegramTheme = {
   bgColor: '#0f172a',
   textColor: '#f8fafc',
@@ -55,15 +55,27 @@ function useSharedState() {
 export function useTelegramTheme() {
   const themeMode = useSharedState();
   const isDark = themeMode === 'dark';
+  
+  // Выбираем тему - это константа, ссылка не меняется
   const currentTheme = isDark ? darkTheme : lightTheme;
   
-  const setThemeMode = (mode: 'light' | 'dark') => {
+  // Стабилизируем setThemeMode через useCallback
+  // Функция создаётся один раз и не меняется между рендерами
+  const setThemeMode = useCallback((mode: 'light' | 'dark') => {
     themeState = mode;
     localStorage.setItem('app_theme', mode);
     notifyListeners();
-  };
+  }, []);
 
-  return { ...currentTheme, themeMode, setThemeMode, isDark };
+  // Мемоизируем весь объект - создаётся только при смене темы
+  const theme = useMemo(() => ({
+    ...currentTheme,
+    themeMode,
+    setThemeMode,
+    isDark,
+  }), [currentTheme, themeMode, setThemeMode, isDark]);
+
+  return theme;
 }
 
 export function getGreeting(): string {

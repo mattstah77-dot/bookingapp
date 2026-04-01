@@ -1,4 +1,4 @@
-import { memo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 import type { Service } from '../../types/booking';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 
@@ -16,35 +16,54 @@ export const ServiceCard = memo(function ServiceCard({ service, onSelect, index 
   const photos = service.photos;
   const hasPhotos = Array.isArray(photos) && photos.length > 0 && photos[0];
 
+  // Стабильный onClick - НЕ создаёт новую функцию
+  const handleClick = useCallback(() => {
+    onSelect(service);
+  }, [onSelect, service]);
+
+  // Мемоизируем стили - НЕ создаём объект при каждом рендере
+  const containerStyle = useMemo(() => ({
+    background: isDark 
+      ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+      : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
+    backdropFilter: 'blur(24px)',
+    WebkitBackdropFilter: 'blur(24px)',
+    border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)'}`,
+    borderRadius: '16px',
+    boxShadow: isDark 
+      ? '0 4px 16px rgba(0,0,0,0.35)' 
+      : '0 4px 16px rgba(0,0,0,0.06)',
+    transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+    opacity: 0,
+    transform: 'translateY(8px)',
+    animation: `fadeInUp 0.4s ease forwards`,
+    animationDelay: `${index * 40}ms`,
+    cursor: 'pointer',
+    position: 'relative' as const,
+    overflow: 'hidden',
+    display: 'flex',
+    alignItems: 'center',
+    padding: '10px 14px',
+    gap: '12px',
+    minHeight: '52px',
+  }), [isDark, index]);
+
+  // Мемоизируем декоративный gradient
+  const decorativeStyle = useMemo(() => ({
+    position: 'absolute' as const,
+    top: '-20px',
+    right: '-20px',
+    width: '60px',
+    height: '60px',
+    background: `radial-gradient(circle, ${theme.buttonColor}12 0%, transparent 70%)`,
+    borderRadius: '50%',
+  }), [theme.buttonColor]);
+
   return (
     <div 
-      onClick={() => onSelect(service)}
+      onClick={handleClick}
       className="glass-card card-press card-hover"
-      style={{
-        background: isDark 
-          ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
-          : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
-        backdropFilter: 'blur(24px)',
-        WebkitBackdropFilter: 'blur(24px)',
-        border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.06)'}`,
-        borderRadius: '16px',
-        boxShadow: isDark 
-          ? '0 4px 16px rgba(0,0,0,0.35)' 
-          : '0 4px 16px rgba(0,0,0,0.06)',
-        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-        opacity: 0,
-        transform: 'translateY(8px)',
-        animation: `fadeInUp 0.4s ease forwards`,
-        animationDelay: `${index * 40}ms`,
-        cursor: 'pointer',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        alignItems: 'center',
-        padding: '10px 14px',
-        gap: '12px',
-        minHeight: '52px',
-      }}
+      style={containerStyle}
     >
       {/* Фото */}
       {hasPhotos && photos && (
@@ -79,15 +98,7 @@ export const ServiceCard = memo(function ServiceCard({ service, onSelect, index 
         alignItems: 'center',
       }}>
         {/* Декоративный элемент */}
-        <div style={{
-          position: 'absolute',
-          top: '-20px',
-          right: '-20px',
-          width: '60px',
-          height: '60px',
-          background: `radial-gradient(circle, ${theme.buttonColor}12 0%, transparent 70%)`,
-          borderRadius: '50%',
-        }} />
+        <div style={decorativeStyle} />
         
         <h3 
           style={{ 

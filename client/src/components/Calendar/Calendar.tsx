@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react';
 
@@ -7,7 +7,7 @@ interface CalendarProps {
   onDateSelect: (date: Date) => void;
 }
 
-export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
+export const Calendar = memo(function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
   const theme = useTelegramTheme();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   
@@ -153,4 +153,4 @@ export function Calendar({ selectedDate, onDateSelect }: CalendarProps) {
       </div>
     </div>
   );
-}
+});

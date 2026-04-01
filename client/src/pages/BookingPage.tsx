@@ -70,6 +70,40 @@ export default function BookingPage() {
     reset,
   } = useBooking();
 
+  // === СТАБИЛЬНЫЕ CALLBACKS (добавлено для оптимизации) ===
+  
+  // Для ServiceCard - передаётся в список услуг
+  const handleServiceSelect = useCallback((service: Service) => {
+    setSelectedServiceForModal(service);
+  }, []);
+
+  // Для переключения табов
+  const handleTabChange = useCallback((tab: 'services' | 'bookings') => {
+    setActiveTab(tab);
+  }, []);
+
+  // Для открытия деталей записи
+  const handleBookingClick = useCallback((booking: Booking) => {
+    setSelectedBooking(booking);
+  }, []);
+
+  // Для закрытия модалок
+  const handleCloseModal = useCallback(() => {
+    setSelectedServiceForModal(null);
+    setSelectedBooking(null);
+  }, []);
+
+  // Для переключения темы
+  const handleToggleTheme = useCallback(() => {
+    setThemeMode(isDark ? 'light' : 'dark');
+  }, [isDark, setThemeMode]);
+
+  // Для подтверждения выбора услуги в модалке
+  const handleServiceConfirm = useCallback((service: Service) => {
+    setSelectedServiceForModal(null);
+    selectService(service);
+  }, [selectService]);
+
  // Загрузка услуг при старте
  useEffect(() => {
  const fetchServices = async () => {
@@ -149,6 +183,17 @@ export default function BookingPage() {
       month: 'long',
     });
   }, [selectedDate]);
+
+  // Мемоизируем рендер списка услуг - НЕ создаём новый массив при каждом рендере
+  const serviceCards = useMemo(() => 
+    services.map((service, index) => (
+      <ServiceCard
+        key={service.id}
+        service={service}
+        onSelect={handleServiceSelect}
+        index={index}
+      />
+    )), [services, handleServiceSelect]);
 
   // Обработка бронирования
   const handleBooking = useCallback(async () => {
@@ -406,14 +451,7 @@ export default function BookingPage() {
                   gap: '10px',
                 }}
               >
-                {services.map((service, index) => (
-                  <ServiceCard
-                    key={service.id}
-                    service={service}
-                    onSelect={setSelectedServiceForModal}
-                    index={index}
-                  />
-                ))}
+                {serviceCards}
                 {services.length === 0 && !error && (
                   <div style={{ 
                     textAlign: 'center',
@@ -595,7 +633,7 @@ export default function BookingPage() {
                     {myBookings.upcoming.map((booking) => (
                       <div
                         key={booking.id}
-                        onClick={() => setSelectedBooking(booking)}
+                        onClick={() => handleBookingClick(booking)}
                         className="glass-card"
                         style={{ 
                           borderRadius: '18px',
@@ -647,7 +685,7 @@ export default function BookingPage() {
                     {myBookings.past.map((booking) => (
                       <div
                         key={booking.id}
-                        onClick={() => setSelectedBooking(booking)}
+                        onClick={() => handleBookingClick(booking)}
                         className="glass-card"
                         style={{ 
                           borderRadius: '18px',
@@ -694,11 +732,8 @@ export default function BookingPage() {
       {selectedServiceForModal && (
         <ServiceModal
           service={selectedServiceForModal}
-          onSelect={(service) => {
-            setSelectedServiceForModal(null);
-            selectService(service);
-          }}
-          onClose={() => setSelectedServiceForModal(null)}
+          onSelect={handleServiceConfirm}
+          onClose={handleCloseModal}
         />
       )}
 
@@ -715,7 +750,7 @@ export default function BookingPage() {
             zIndex: 1000,
             padding: '24px',
           }}
-          onClick={() => setSelectedBooking(null)}
+          onClick={handleCloseModal}
         >
           <div 
             style={{
@@ -782,7 +817,7 @@ export default function BookingPage() {
             </div>
 
             <button
-              onClick={() => setSelectedBooking(null)}
+              onClick={handleCloseModal}
               style={{
                 width: '100%',
                 padding: '14px',
@@ -828,7 +863,7 @@ export default function BookingPage() {
         }}
       >
         <button
-          onClick={() => setActiveTab('services')}
+          onClick={() => handleTabChange('services')}
           style={{ 
             width: '72px',
             display: 'flex',
@@ -854,7 +889,7 @@ export default function BookingPage() {
         </button>
         
         <button
-          onClick={() => setActiveTab('bookings')}
+          onClick={() => handleTabChange('bookings')}
           style={{ 
             width: '72px',
             display: 'flex',
@@ -888,7 +923,7 @@ export default function BookingPage() {
         zIndex: 100,
       }}>
         <button
-          onClick={() => setThemeMode(isDark ? 'light' : 'dark')}
+          onClick={handleToggleTheme}
           style={{
             display: 'flex',
             alignItems: 'center',

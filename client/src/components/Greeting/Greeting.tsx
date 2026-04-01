@@ -1,6 +1,7 @@
+import { memo } from 'react';
 import { useTelegramTheme, getGreeting } from '../../hooks/useTelegram';
 
-export function Greeting() {
+export const Greeting = memo(function Greeting() {
   const theme = useTelegramTheme();
   const message = getGreeting();
 
@@ -42,4 +43,4 @@ export function Greeting() {
       </p>
     </div>
   );
-}
+});
