@@ -9,6 +9,7 @@ interface ThemeToggleProps {
 
 export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor }: ThemeToggleProps) {
   const toggleTheme = () => {
+    alert('Toggle clicked! isDark: ' + isDark);
     console.log('[ThemeToggle] Current isDark:', isDark, 'Switching to:', isDark ? 'light' : 'dark');
     setThemeMode(isDark ? 'light' : 'dark');
   };
@@ -27,6 +28,9 @@ export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor }: Th
         background: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)',
         cursor: 'pointer',
         transition: 'all 0.2s ease',
+        pointerEvents: 'auto',
+        position: 'relative',
+        zIndex: 50,
       }}
       title={isDark ? 'Светлая тема' : 'Тёмная тема'}
     >
