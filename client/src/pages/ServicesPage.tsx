@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, memo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import type { Service } from '../types/booking';
 import { ServiceEditModal } from '../components/ServiceEditModal/ServiceEditModal';
@@ -48,7 +48,7 @@ function getAuthHeaders(): HeadersInit {
 }
 
 // Сортируемый элемент - как у пользователя + админ кнопки
-function SortableServiceCard({
+const SortableServiceCard = memo(function SortableServiceCard({
   service,
   onToggleVisibility,
   onDelete,
@@ -227,7 +227,7 @@ function SortableServiceCard({
       </div>
     </div>
   );
-}
+});
 
 export default function ServicesPage() {
   const theme = useTelegramTheme();

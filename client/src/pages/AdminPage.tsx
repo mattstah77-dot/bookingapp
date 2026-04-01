@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, memo } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import { Alert } from '../components/Alert/Alert';
@@ -1396,7 +1396,7 @@ export default function AdminPage() {
 }
 
 // ========== SORTABLE SERVICE CARD COMPONENT ==========
-function SortableServiceCard({
+const SortableServiceCard = memo(function SortableServiceCard({
   service,
   onToggle,
   onDelete,
@@ -1558,7 +1558,7 @@ function SortableServiceCard({
       </div>
     </div>
   );
-}
+});
 
 // ========== SERVICE EDIT MODAL COMPONENT ==========
 function ServiceEditModalRenderer({

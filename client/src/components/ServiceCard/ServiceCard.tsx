@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import type { Service } from '../../types/booking';
 import { useTelegramTheme } from '../../hooks/useTelegram';
 
@@ -7,7 +8,7 @@ interface ServiceCardProps {
   index?: number;
 }
 
-export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) {
+export const ServiceCard = memo(function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) {
   const theme = useTelegramTheme();
   
   const isDark = theme.bgColor !== '#ffffff';
@@ -140,4 +141,4 @@ export function ServiceCard({ service, onSelect, index = 0 }: ServiceCardProps) 
       `}</style>
     </div>
   );
-}
+});
