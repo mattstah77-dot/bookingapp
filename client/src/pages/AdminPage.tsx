@@ -1264,36 +1264,37 @@ export default function AdminPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: '16px',
+          bottom: '12px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'auto',
-          padding: '10px 12px',
-          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+          padding: '8px 10px',
+          paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
             ? 'rgba(30,30,30,0.85)' 
             : 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(20px)',
-          borderRadius: '24px',
+          borderRadius: '20px',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
           boxShadow: isDark 
             ? '0 8px 32px rgba(0,0,0,0.4)' 
             : '0 8px 32px rgba(0,0,0,0.1)',
           display: 'flex',
-          gap: '8px',
+          gap: '6px',
           zIndex: 100,
         }}
       >
         <button
           onClick={() => setActiveTab('bookings')}
           style={{ 
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '12px 18px',
-            borderRadius: '18px',
+            gap: '2px',
+            padding: '10px 20px',
+            borderRadius: '16px',
             background: activeTab === 'bookings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1302,23 +1303,23 @@ export default function AdminPage() {
               : theme.hintColor,
             border: 'none',
             cursor: 'pointer',
-            minWidth: '68px',
             transition: 'all 0.2s ease',
           }}
         >
-          <ClipboardList size={20} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Записи</span>
+          <ClipboardList size={18} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>Записи</span>
         </button>
         <button
           onClick={() => setActiveTab('services')}
           style={{
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '12px 18px',
-            borderRadius: '18px',
+            gap: '2px',
+            padding: '10px 20px',
+            borderRadius: '16px',
             background: activeTab === 'services' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1327,23 +1328,23 @@ export default function AdminPage() {
               : theme.hintColor,
             border: 'none',
             cursor: 'pointer',
-            minWidth: '68px',
             transition: 'all 0.2s ease',
           }}
         >
-          <Scissors size={20} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Услуги</span>
+          <Scissors size={18} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>Услуги</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}
           style={{ 
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '12px 18px',
-            borderRadius: '18px',
+            gap: '2px',
+            padding: '10px 20px',
+            borderRadius: '16px',
             background: activeTab === 'settings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1352,12 +1353,11 @@ export default function AdminPage() {
               : theme.hintColor,
             border: 'none',
             cursor: 'pointer',
-            minWidth: '68px',
             transition: 'all 0.2s ease',
           }}
         >
-          <Settings size={20} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Настройки</span>
+          <Settings size={18} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>Настройки</span>
         </button>
       </div>
 
@@ -1428,7 +1428,7 @@ function SortableServiceCard({
 
   return (
     <div ref={setNodeRef} style={style}>
-      <div
+      <div 
         className="glass-card"
         style={{
           background: service.isActive 
@@ -1494,7 +1494,7 @@ function SortableServiceCard({
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
             <span style={{ 
               color: theme.buttonColor, 
-              fontSize: '14px', 
+              fontSize: '14px',
               fontWeight: 700,
             }}>
               {service.price.toLocaleString('ru-RU')} ₽

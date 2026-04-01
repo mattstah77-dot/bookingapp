@@ -11,8 +11,7 @@ import { Calendar } from '../components/Calendar/Calendar';
 import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
-import { ThemeToggle } from '../components/ThemeToggle/ThemeToggle';
-import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon, Scissors, ClipboardList } from 'lucide-react';
+import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon, Scissors, ClipboardList, Sun, Moon } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -48,6 +47,9 @@ export default function BookingPage() {
 
   // Табы навигации: 'services' - услуги, 'bookings' - мои записи
   const [activeTab, setActiveTab] = useState<'services' | 'bookings'>('services');
+  
+  // Выбранная запись для просмотра деталей
+  const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   
   // Записи пользователя
   const [myBookings, setMyBookings] = useState<{
@@ -593,6 +595,7 @@ export default function BookingPage() {
                     {myBookings.upcoming.map((booking) => (
                       <div
                         key={booking.id}
+                        onClick={() => setSelectedBooking(booking)}
                         className="glass-card"
                         style={{ 
                           borderRadius: '18px',
@@ -602,6 +605,7 @@ export default function BookingPage() {
                             : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
                           backdropFilter: 'blur(20px)',
                           border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                          cursor: 'pointer',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
@@ -643,6 +647,7 @@ export default function BookingPage() {
                     {myBookings.past.map((booking) => (
                       <div
                         key={booking.id}
+                        onClick={() => setSelectedBooking(booking)}
                         className="glass-card"
                         style={{ 
                           borderRadius: '18px',
@@ -652,6 +657,7 @@ export default function BookingPage() {
                             : 'rgba(255,255,255,0.6)',
                           border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
                           opacity: 0.7,
+                          cursor: 'pointer',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -696,40 +702,141 @@ export default function BookingPage() {
         />
       )}
 
+      {/* Модалка деталей записи */}
+      {selectedBooking && (
+        <div 
+          style={{ 
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '24px',
+          }}
+          onClick={() => setSelectedBooking(null)}
+        >
+          <div 
+            style={{
+              background: isDark 
+                ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+                : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
+              backdropFilter: 'blur(24px)',
+              borderRadius: '24px',
+              padding: '24px',
+              width: '100%',
+              maxWidth: '360px',
+              maxHeight: '90vh',
+              overflow: 'auto',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 style={{ color: theme.textColor, fontSize: '18px', fontWeight: 700, margin: '0 0 20px 0' }}>
+              Детали записи
+            </h3>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                <span style={{ color: theme.hintColor, fontSize: '14px' }}>Услуга</span>
+                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '14px' }}>{selectedBooking.serviceName}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                <span style={{ color: theme.hintColor, fontSize: '14px' }}>Дата</span>
+                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '14px' }}>
+                  {new Date(selectedBooking.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+                </span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                <span style={{ color: theme.hintColor, fontSize: '14px' }}>Время</span>
+                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '14px' }}>{selectedBooking.time}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                <span style={{ color: theme.hintColor, fontSize: '14px' }}>Длительность</span>
+                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '14px' }}>{selectedBooking.duration} мин</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                <span style={{ color: theme.hintColor, fontSize: '14px', fontWeight: 500 }}>Стоимость</span>
+                <span style={{ fontWeight: 700, fontSize: '22px', color: theme.buttonColor }}>
+                  {selectedBooking.price} ₽
+                </span>
+              </div>
+              <div style={{ 
+                marginTop: '8px',
+                padding: '10px 14px',
+                borderRadius: '12px',
+                background: selectedBooking.status === 'confirmed' ? 'rgba(34,197,94,0.15)' : (isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'),
+                textAlign: 'center',
+              }}>
+                <span style={{ 
+                  color: selectedBooking.status === 'confirmed' ? '#22c55e' : theme.hintColor,
+                  fontSize: '13px',
+                  fontWeight: 600,
+                }}>
+                  {selectedBooking.status === 'confirmed' ? 'Подтверждено' : 
+                   selectedBooking.status === 'cancelled_by_user' ? 'Отменено вами' :
+                   selectedBooking.status === 'cancelled_by_admin' ? 'Отменено администратором' :
+                   selectedBooking.status === 'cancelled' ? 'Отменено' : 'Завершено'}
+                </span>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setSelectedBooking(null)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                marginTop: '20px',
+                borderRadius: '14px',
+                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+                background: 'transparent',
+                color: theme.hintColor,
+                fontSize: '14px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Закрыть
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Фиксированная панель навигации внизу - компактная, полупрозрачная */}
       <div 
         style={{
           position: 'fixed', 
-          bottom: '16px',
+          bottom: '12px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'auto',
-          padding: '10px 12px',
-          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+          padding: '8px 10px',
+          paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
             ? 'rgba(30,30,30,0.85)' 
             : 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(20px)',
-          borderRadius: '24px',
+          borderRadius: '20px',
           border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
           boxShadow: isDark 
             ? '0 8px 32px rgba(0,0,0,0.4)' 
             : '0 8px 32px rgba(0,0,0,0.1)',
           display: 'flex',
-          gap: '8px',
+          gap: '6px',
           zIndex: 100,
         }}
       >
         <button
           onClick={() => setActiveTab('services')}
           style={{ 
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '12px 20px',
-            borderRadius: '18px',
+            gap: '2px',
+            padding: '10px 24px',
+            borderRadius: '16px',
             background: activeTab === 'services' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -738,24 +845,24 @@ export default function BookingPage() {
               : theme.hintColor,
             border: 'none',
             cursor: 'pointer',
-            minWidth: '72px',
             transition: 'all 0.2s ease',
           }}
         >
-          <Scissors size={20} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Услуги</span>
+          <Scissors size={18} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>Услуги</span>
         </button>
         
         <button
           onClick={() => setActiveTab('bookings')}
           style={{ 
+            flex: 1,
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '4px',
-            padding: '12px 20px',
-            borderRadius: '18px',
+            gap: '2px',
+            padding: '10px 24px',
+            borderRadius: '16px',
             background: activeTab === 'bookings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -764,28 +871,53 @@ export default function BookingPage() {
               : theme.hintColor,
             border: 'none',
             cursor: 'pointer',
-            minWidth: '72px',
             transition: 'all 0.2s ease',
           }}
         >
-          <ClipboardList size={20} />
-          <span style={{ fontSize: '11px', fontWeight: 600 }}>Записи</span>
+          <ClipboardList size={18} />
+          <span style={{ fontSize: '10px', fontWeight: 600 }}>Записи</span>
         </button>
-        
-        <ThemeToggle
-          setThemeMode={setThemeMode}
-          isDark={isDark}
-          buttonColor={theme.buttonColor}
-          hintColor={theme.hintColor}
-          compact
-        />
       </div>
 
-      {/* Кнопка админ-панели - полупрозрачная */}
+      {/* Кнопка переключения темы - слева от админки */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', 
+        left: '20px',
+        zIndex: 100,
+      }}>
+        <button
+          onClick={() => setThemeMode(isDark ? 'light' : 'dark')}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '44px',
+            height: '44px',
+            borderRadius: '16px',
+            background: isDark 
+              ? 'rgba(35,35,35,0.6)' 
+              : 'rgba(255,255,255,0.6)',
+            backdropFilter: 'blur(16px)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+            color: theme.hintColor,
+            cursor: 'pointer',
+            opacity: 0.7,
+            transition: 'opacity 0.2s ease',
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
+        >
+          {isDark ? <Sun size={20} /> : <Moon size={20} />}
+        </button>
+      </div>
+
+      {/* Кнопка админ-панели - справа */}
       {isAdmin && (
         <div style={{ 
           position: 'fixed', 
-          bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))', 
+          bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', 
           right: '20px',
           zIndex: 100,
         }}>
