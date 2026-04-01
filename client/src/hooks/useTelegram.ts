@@ -35,16 +35,17 @@ export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark
   const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getStoredTheme);
 
   const isDark = themeMode === 'dark';
-  const currentTheme = isDark ? darkTheme : lightTheme;
+  
+  // Создаём новый объект каждый раз для реактивности
+  const currentTheme: TelegramTheme = isDark 
+    ? { ...darkTheme } 
+    : { ...lightTheme };
 
   const setThemeMode = (mode: 'light' | 'dark') => {
-    console.log('[Theme] Switching to:', mode);
+    console.log('[Theme] setThemeMode called with:', mode);
     setThemeModeState(mode);
     localStorage.setItem('app_theme', mode);
-    console.log('[Theme] After setThemeMode, themeMode is:', mode);
   };
-
-  console.log('[Theme] Render, themeMode:', themeMode, 'isDark:', isDark, 'bgColor:', currentTheme.bgColor);
 
   return { ...currentTheme, themeMode, setThemeMode, isDark };
 }
