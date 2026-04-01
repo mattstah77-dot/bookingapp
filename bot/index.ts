@@ -1,6 +1,7 @@
 import { Bot, Context, Keyboard } from 'grammy';
 import { db } from '../server/database.js';
 import crypto from 'crypto';
+import { withTimeout, safeExecute, globalRateLimiter } from './utils/safeExecute.js';
 
 // Хранилище состояний ожидания токена (в памяти)
 // В продакшене лучше использовать Redis или БД
@@ -28,7 +29,8 @@ if (!BOT_TOKEN) {
 export async function validateToken(botToken: string): Promise<{ success: boolean; bot?: { id: string; username: string; first_name: string }; error?: string }> {
   try {
     const testBot = new Bot(botToken);
-    const me = await testBot.api.getMe();
+    // Таймаут 10 секунд
+    const me = await withTimeout(testBot.api.getMe(), 10000, 'Telegram API timeout');
     return {
       success: true,
       bot: {
@@ -41,7 +43,7 @@ export async function validateToken(botToken: string): Promise<{ success: boolea
     console.error('❌ Token validation failed:', error.message);
     return {
       success: false,
-      error: error.description || 'Invalid token',
+      error: error.description || error.message || 'Invalid token',
     };
   }
 }
@@ -64,7 +66,8 @@ export async function setupWebhook(botToken: string, secretPath: string): Promis
     // Инициализируем бота перед установкой webhook
     await testBot.init();
     
-    await testBot.api.setWebhook(webhookUrl);
+    // Таймаут 15 секунд для установки webhook
+    await withTimeout(testBot.api.setWebhook(webhookUrl), 15000, 'Webhook setup timeout');
     console.log(`✅ Webhook set for ${webhookUrl}`);
     
     return { success: true };
@@ -72,7 +75,7 @@ export async function setupWebhook(botToken: string, secretPath: string): Promis
     console.error('❌ Webhook setup failed:', error.message);
     return {
       success: false,
-      error: error.description || 'Failed to set webhook',
+      error: error.description || error.message || 'Failed to set webhook',
     };
   }
 }
@@ -446,91 +449,105 @@ export function createBot() {
 
   const bot = new Bot(BOT_TOKEN);
 
-  // Добавим обработку ошибок
+  // Глобальный catch для всех ошибок бота
   bot.catch((err) => {
-    console.error('❌ Bot error:', err);
+    const ctx = err.ctx;
+    const chatId = ctx?.from?.id || 'unknown';
+    console.error(`❌ Bot error for user ${chatId}:`, {
+      message: err.message,
+      stack: err.stack,
+      timestamp: new Date().toISOString(),
+    });
   });
 
   // Команда /start - главное меню на inline кнопках
   bot.command('start', async (ctx: Context) => {
-    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
-    
-    await ctx.reply(
-      'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }],
-            [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
-          ]
+    await safeExecute(async () => {
+      const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      
+      await ctx.reply(
+        'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }],
+              [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
+            ]
+          }
         }
-      }
-    );
+      );
+    }, '/start command');
   });
 
   // Обработка "Мои записи" - показываем записи клиента
   bot.hears('📋 Мои записи', async (ctx: Context) => {
-    const telegramId = ctx.from?.id;
-    if (!telegramId) {
-      await ctx.reply('Не могу определить пользователя');
-      return;
-    }
-    
-    const upcoming = await getUserBookings(telegramId, 'upcoming');
-    const past = await getUserBookings(telegramId, 'past');
-    
-    if (upcoming.length === 0 && past.length === 0) {
-      await ctx.reply(
-        'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
-        getMyBookingsMenuKeyboard()
-      );
-      return;
-    }
-    
-    let text = '📋 Ваши записи\n\n';
-    if (upcoming.length > 0) {
-      text += `📅 Предстоящих: ${upcoming.length}\n`;
-    }
-    if (past.length > 0) {
-      text += `📆 Прошедших: ${past.length}`;
-    }
-    
-    await ctx.reply(text, getMyBookingsMenuKeyboard());
+    await safeExecute(async () => {
+      const telegramId = ctx.from?.id;
+      if (!telegramId) {
+        await ctx.reply('Не могу определить пользователя');
+        return;
+      }
+      
+      const upcoming = await getUserBookings(telegramId, 'upcoming');
+      const past = await getUserBookings(telegramId, 'past');
+      
+      if (upcoming.length === 0 && past.length === 0) {
+        await ctx.reply(
+          'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
+          getMyBookingsMenuKeyboard()
+        );
+        return;
+      }
+      
+      let text = '📋 Ваши записи\n\n';
+      if (upcoming.length > 0) {
+        text += `📅 Предстоящих: ${upcoming.length}\n`;
+      }
+      if (past.length > 0) {
+        text += `📆 Прошедших: ${past.length}`;
+      }
+      
+      await ctx.reply(text, getMyBookingsMenuKeyboard());
+    }, 'my_bookings hears');
   });
 
   // Обработка "Записаться" - открывает web_app
   bot.hears('✂️ Записаться', async (ctx: Context) => {
-    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
-    
-    await ctx.reply(
-      'Перейдите к записи:',
-      {
-        reply_markup: {
-          inline_keyboard: [
-            [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }]
-          ]
+    await safeExecute(async () => {
+      const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
+      
+      await ctx.reply(
+        'Перейдите к записи:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}` } }]
+            ]
+          }
         }
-      }
-    );
+      );
+    }, 'book hears');
   });
 
   // Команда /help
   bot.command('help', async (ctx: Context) => {
-    let text = 'Доступные команды:\n\n' +
-      '/start - Начать\n' +
-      '/help - Помощь\n';
-    
-    if (isAdmin(ctx)) {
-      text += '\n🛠 Админ:\n' +
-        '/admin - Панель управления';
-    }
-    
-    await ctx.reply(text);
+    await safeExecute(async () => {
+      let text = 'Доступные команды:\n\n' +
+        '/start - Начать\n' +
+        '/help - Помощь\n';
+      
+      if (isAdmin(ctx)) {
+        text += '\n🛠 Админ:\n' +
+          '/admin - Панель управления';
+      }
+      
+      await ctx.reply(text);
+    }, '/help command');
   });
 
   // Команда /admin
   bot.command('admin', async (ctx: Context) => {
-    try {
+    await safeExecute(async () => {
       if (!isAdmin(ctx)) {
         await ctx.reply('⛔ У вас нет доступа к админ-панели.');
         return;
@@ -550,15 +567,12 @@ export function createBot() {
           }
         }
       );
-    } catch (err) {
-      console.error('Error in /admin:', err);
-      await ctx.reply('❌ Произошла ошибка');
-    }
+    }, '/admin command');
   });
 
   // Команда /addbot - добавить нового бота для бизнеса
   bot.command('addbot', async (ctx: Context) => {
-    try {
+    await safeExecute(async () => {
       // Проверяем что пользователь админ
       if (!isAdmin(ctx)) {
         await ctx.reply('⛔ У вас нет доступа к этой команде.');
@@ -584,24 +598,23 @@ export function createBot() {
       if (telegramId) {
         pendingTokenStates.set(telegramId, true);
       }
-    } catch (err) {
-      console.error('Error in /addbot:', err);
-      await ctx.reply('❌ Произошла ошибка');
-    }
+    }, '/addbot command');
   });
 
   // Обработка callback-запросов
   bot.on('callback_query', async (ctx: Context) => {
-    const callbackData = ctx.callbackQuery?.data;
-    const msg = ctx.callbackQuery?.message;
-    
-    if (!callbackData || !msg) return;
-    
-    // Отвечаем на callback чтобы убрать "часики"
-    await ctx.answerCallbackQuery();
-    
-    const telegramId = ctx.from?.id;
-    if (!telegramId) return;
+    // Изоляция каждого callback query
+    await safeExecute(async () => {
+      const callbackData = ctx.callbackQuery?.data;
+      const msg = ctx.callbackQuery?.message;
+      
+      if (!callbackData || !msg) return;
+      
+      // Отвечаем на callback чтобы убрать "часики"
+      await ctx.answerCallbackQuery();
+      
+      const telegramId = ctx.from?.id;
+      if (!telegramId) return;
     
     // ========== ГЛАВНОЕ МЕНЮ ==========
     if (callbackData === 'main_menu') {
@@ -845,67 +858,67 @@ export function createBot() {
       );
       return;
     }
+    }, 'callback_query');
   });
 
   // Обработка текстовых сообщений (для токена бота)
   bot.on('message:text', async (ctx: Context) => {
-    const text = ctx.message?.text;
-    const telegramId = ctx.from?.id;
-    
-    // Проверяем, ждём ли мы токен бота
-    const isWaiting = telegramId ? pendingTokenStates.get(telegramId) : false;
-    if (isWaiting && text && telegramId) {
-      const botToken = text.trim();
+    await safeExecute(async () => {
+      const text = ctx.message?.text;
+      const telegramId = ctx.from?.id;
       
-      // Проверяем формат токена
-      if (!botToken.includes(':') || botToken.split(':').length !== 2) {
-        await ctx.reply('❌ Неверный формат токена. Пример: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz');
+      // Проверяем, ждём ли мы токен бота
+      const isWaiting = telegramId ? pendingTokenStates.get(telegramId) : false;
+      if (isWaiting && text && telegramId) {
+        const botToken = text.trim();
+        
+        // Проверяем формат токена
+        if (!botToken.includes(':') || botToken.split(':').length !== 2) {
+          await ctx.reply('❌ Неверный формат токена. Пример: 123456789:ABCdefGHIjklMNOpqrsTUVwxyz');
+          return;
+        }
+        
+        await ctx.reply('⏳ Проверяю токен и создаю бота...');
+        
+        try {
+          const result = await createChildBot(botToken, telegramId, ctx.from.first_name);
+          
+          if (result.success && result.bot) {
+            const botUsername = result.bot.botUsername;
+            const secretPath = result.bot.secretPath;
+            const miniAppUrl = `${SERVER_URL}?bot_id=${result.bot.id}`;
+            
+            await ctx.reply(
+              `✅ Бот успешно создан!\n\n` +
+              `🤖 Username: @${botUsername}\n` +
+              `🔗 Mini App: ${miniAppUrl}\n\n` +
+              `Передайте эту ссылку вашему клиенту для использования.`,
+              {
+                reply_markup: {
+                  inline_keyboard: [
+                    [{ text: '🛠 Админ-панель', web_app: { url: `${SERVER_URL}/admin?bot_id=${result.bot.id}` } }],
+                    [{ text: '🔙 В меню', callback_data: 'admin_menu' }]
+                  ]
+                }
+              }
+            );
+          } else {
+            await ctx.reply(`❌ Ошибка: ${result.error || 'Неизвестная ошибка'}`);
+          }
+        } catch (err) {
+          console.error('Error creating bot:', err);
+          await ctx.reply('❌ Произошла ошибка при создании бота');
+        }
+        
+        // Сбрасываем состояние
+        if (telegramId) {
+          pendingTokenStates.delete(telegramId);
+        }
         return;
       }
-      
-      await ctx.reply('⏳ Проверяю токен и создаю бота...');
-      
-      try {
-        const result = await createChildBot(botToken, telegramId, ctx.from.first_name);
-        
-        if (result.success && result.bot) {
-          const botUsername = result.bot.botUsername;
-          const secretPath = result.bot.secretPath;
-          const miniAppUrl = `${SERVER_URL}?bot_id=${result.bot.id}`;
-          
-          await ctx.reply(
-            `✅ Бот успешно создан!\n\n` +
-            `🤖 Username: @${botUsername}\n` +
-            `🔗 Mini App: ${miniAppUrl}\n\n` +
-            `Передайте эту ссылку вашему клиенту для использования.`,
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '🛠 Админ-панель', web_app: { url: `${SERVER_URL}/admin?bot_id=${result.bot.id}` } }],
-                  [{ text: '🔙 В меню', callback_data: 'admin_menu' }]
-                ]
-              }
-            }
-          );
-        } else {
-          await ctx.reply(`❌ Ошибка: ${result.error || 'Неизвестная ошибка'}`);
-        }
-      } catch (err) {
-        console.error('Error creating bot:', err);
-        await ctx.reply('❌ Произошла ошибка при создании бота');
-      }
-      
-      // Сбрасываем состояние
-      if (telegramId) {
-        pendingTokenStates.delete(telegramId);
-      }
-      return;
-    }
-    
-    // Обычные сообщения - не отвечаем на произвольный текст
-    // await ctx.reply('Я получил ваше сообщение: ' + text);
+    }, 'message:text');
   });
-
+      
   return bot;
 }
 
@@ -937,7 +950,7 @@ export async function startBot(bot: Bot) {
   if (WEBHOOK_URL) {
     try {
       const webhookUrl = `${WEBHOOK_URL}/webhook`;
-      await bot.api.setWebhook(webhookUrl);
+      await withTimeout(bot.api.setWebhook(webhookUrl), 15000, 'Failed to set webhook');
       console.log(`✅ Webhook set to: ${webhookUrl}`);
     } catch (err) {
       console.error('❌ Failed to set webhook:', err);
@@ -949,10 +962,27 @@ export async function startBot(bot: Bot) {
     console.log('✅ Bot is running (polling mode)');
   }
   
-  // Graceful shutdown
+  // Graceful shutdown - SIGINT (Ctrl+C)
   process.on('SIGINT', async () => {
-    console.log('🛑 Stopping bot...');
-    await bot.stop();
+    console.log('🛑 Received SIGINT, shutting down gracefully...');
+    try {
+      await bot.stop();
+      console.log('✅ Bot stopped');
+    } catch (err) {
+      console.error('❌ Error stopping bot:', err);
+    }
+    process.exit(0);
+  });
+
+  // Graceful shutdown - SIGTERM (Docker, systemd)
+  process.on('SIGTERM', async () => {
+    console.log('🛑 Received SIGTERM, shutting down gracefully...');
+    try {
+      await bot.stop();
+      console.log('✅ Bot stopped');
+    } catch (err) {
+      console.error('❌ Error stopping bot:', err);
+    }
     process.exit(0);
   });
 }
