@@ -1264,38 +1264,38 @@ export default function AdminPage() {
       <div
         style={{
           position: 'fixed',
-          bottom: '12px',
+          bottom: '10px',
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'auto',
-          padding: '8px 12px',
-          paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
+          padding: '6px 10px',
+          paddingBottom: 'calc(6px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
-            ? 'rgba(30,30,30,0.8)' 
-            : 'rgba(255,255,255,0.8)',
+            ? 'rgba(30,30,30,0.65)' 
+            : 'rgba(255,255,255,0.65)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
-          borderRadius: '20px',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+          borderRadius: '18px',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)'}`,
           boxShadow: isDark 
-            ? '0 8px 32px rgba(0,0,0,0.3)' 
-            : '0 8px 32px rgba(0,0,0,0.08)',
+            ? '0 6px 24px rgba(0,0,0,0.25)' 
+            : '0 6px 24px rgba(0,0,0,0.06)',
           display: 'flex',
-          gap: '8px',
+          gap: '6px',
           zIndex: 100,
         }}
       >
         <button
           onClick={() => setActiveTab('bookings')}
           style={{ 
-            width: '80px',
+            width: '72px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '2px',
-            padding: '10px 8px',
-            borderRadius: '14px',
+            padding: '8px 6px',
+            borderRadius: '12px',
             background: activeTab === 'bookings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1307,20 +1307,20 @@ export default function AdminPage() {
             transition: 'all 0.2s ease',
           }}
         >
-          <ClipboardList size={18} />
-          <span style={{ fontSize: '10px', fontWeight: 600 }}>Записи</span>
+          <ClipboardList size={16} />
+          <span style={{ fontSize: '9px', fontWeight: 600 }}>Записи</span>
         </button>
         <button
           onClick={() => setActiveTab('services')}
           style={{
-            width: '80px',
+            width: '72px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '2px',
-            padding: '10px 8px',
-            borderRadius: '14px',
+            padding: '8px 6px',
+            borderRadius: '12px',
             background: activeTab === 'services' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1332,20 +1332,20 @@ export default function AdminPage() {
             transition: 'all 0.2s ease',
           }}
         >
-          <Scissors size={18} />
-          <span style={{ fontSize: '10px', fontWeight: 600 }}>Услуги</span>
+          <Scissors size={16} />
+          <span style={{ fontSize: '9px', fontWeight: 600 }}>Услуги</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}
           style={{ 
-            width: '80px',
+            width: '72px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '2px',
-            padding: '10px 8px',
-            borderRadius: '14px',
+            padding: '8px 6px',
+            borderRadius: '12px',
             background: activeTab === 'settings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -1357,8 +1357,8 @@ export default function AdminPage() {
             transition: 'all 0.2s ease',
           }}
         >
-          <Settings size={18} />
-          <span style={{ fontSize: '10px', fontWeight: 600 }}>Настройки</span>
+          <Settings size={16} />
+          <span style={{ fontSize: '9px', fontWeight: 600 }}>Настройки</span>
         </button>
       </div>
 
