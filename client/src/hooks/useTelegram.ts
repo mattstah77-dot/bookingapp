@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { createContext, useContext, useState, useMemo, useEffect } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
 // Светлая тема
@@ -11,7 +11,7 @@ const lightTheme: TelegramTheme = {
   linkColor: '#3b82f6',
 };
 
-// Тёмная тема (инверсия)
+// Тёмная тема
 const darkTheme: TelegramTheme = {
   bgColor: '#0f172a',
   textColor: '#f8fafc',
@@ -31,20 +31,36 @@ function getStoredTheme(): 'light' | 'dark' {
   return 'light';
 }
 
-export function useTelegramTheme(): TelegramTheme & { themeMode: 'light' | 'dark'; setThemeMode: (mode: 'light' | 'dark') => void; isDark: boolean } {
-  const [themeMode, setThemeModeState] = useState<'light' | 'dark'>(getStoredTheme);
+// Единый state на уровне модуля (синглтон)
+let themeState: 'light' | 'dark' = getStoredTheme();
+let listeners: Array<(mode: 'light' | 'dark') => void> = [];
 
-  const isDark = themeMode === 'dark';
+function notifyListeners() {
+  listeners.forEach(fn => fn(themeState));
+}
+
+function useSharedState() {
+  const [mode, setMode] = useState<'light' | 'dark'>(themeState);
   
-  // Создаём новый объект каждый раз для реактивности
-  const currentTheme: TelegramTheme = isDark 
-    ? { ...darkTheme } 
-    : { ...lightTheme };
+  useEffect(() => {
+    listeners.push(setMode);
+    return () => {
+      listeners = listeners.filter(fn => fn !== setMode);
+    };
+  }, []);
+  
+  return mode;
+}
 
+export function useTelegramTheme() {
+  const themeMode = useSharedState();
+  const isDark = themeMode === 'dark';
+  const currentTheme = isDark ? darkTheme : lightTheme;
+  
   const setThemeMode = (mode: 'light' | 'dark') => {
-    console.log('[Theme] setThemeMode called with:', mode);
-    setThemeModeState(mode);
+    themeState = mode;
     localStorage.setItem('app_theme', mode);
+    notifyListeners();
   };
 
   return { ...currentTheme, themeMode, setThemeMode, isDark };
