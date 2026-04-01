@@ -802,7 +802,7 @@ export default function BookingPage() {
         </div>
       )}
 
-      {/* Фиксированная панель навигации внизу - компактная, полупрозрачная */}
+      {/* Фиксированная панель навигации внизу */}
       <div 
         style={{
           position: 'fixed', 
@@ -810,33 +810,34 @@ export default function BookingPage() {
           left: '50%',
           transform: 'translateX(-50%)',
           width: 'auto',
-          padding: '8px 10px',
+          padding: '8px 12px',
           paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
-            ? 'rgba(30,30,30,0.85)' 
-            : 'rgba(255,255,255,0.85)',
+            ? 'rgba(30,30,30,0.8)' 
+            : 'rgba(255,255,255,0.8)',
           backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
           borderRadius: '20px',
-          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
           boxShadow: isDark 
-            ? '0 8px 32px rgba(0,0,0,0.4)' 
-            : '0 8px 32px rgba(0,0,0,0.1)',
+            ? '0 8px 32px rgba(0,0,0,0.3)' 
+            : '0 8px 32px rgba(0,0,0,0.08)',
           display: 'flex',
-          gap: '6px',
+          gap: '8px',
           zIndex: 100,
         }}
       >
         <button
           onClick={() => setActiveTab('services')}
           style={{ 
-            flex: 1,
+            width: '80px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '2px',
-            padding: '10px 24px',
-            borderRadius: '16px',
+            padding: '10px 8px',
+            borderRadius: '14px',
             background: activeTab === 'services' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -855,14 +856,14 @@ export default function BookingPage() {
         <button
           onClick={() => setActiveTab('bookings')}
           style={{ 
-            flex: 1,
+            width: '80px',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '2px',
-            padding: '10px 24px',
-            borderRadius: '16px',
+            padding: '10px 8px',
+            borderRadius: '14px',
             background: activeTab === 'bookings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
@@ -879,7 +880,7 @@ export default function BookingPage() {
         </button>
       </div>
 
-      {/* Кнопка переключения темы - слева от админки */}
+      {/* Кнопка переключения темы - слева */}
       <div style={{ 
         position: 'fixed', 
         bottom: 'calc(12px + env(safe-area-inset-bottom, 0px))', 
@@ -894,20 +895,19 @@ export default function BookingPage() {
             justifyContent: 'center',
             width: '44px',
             height: '44px',
-            borderRadius: '16px',
+            borderRadius: '14px',
             background: isDark 
-              ? 'rgba(35,35,35,0.6)' 
-              : 'rgba(255,255,255,0.6)',
-            backdropFilter: 'blur(16px)',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
-            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+              ? 'rgba(30,30,30,0.8)' 
+              : 'rgba(255,255,255,0.8)',
+            backdropFilter: 'blur(20px)',
+            WebkitBackdropFilter: 'blur(20px)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+            boxShadow: isDark 
+              ? '0 4px 16px rgba(0,0,0,0.3)' 
+              : '0 4px 16px rgba(0,0,0,0.08)',
             color: theme.hintColor,
             cursor: 'pointer',
-            opacity: 0.7,
-            transition: 'opacity 0.2s ease',
           }}
-          onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-          onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
         >
           {isDark ? <Sun size={20} /> : <Moon size={20} />}
         </button>
@@ -929,20 +929,19 @@ export default function BookingPage() {
               justifyContent: 'center',
               width: '44px',
               height: '44px',
-              borderRadius: '16px',
+              borderRadius: '14px',
               background: isDark 
-                ? 'rgba(35,35,35,0.6)' 
-                : 'rgba(255,255,255,0.6)',
-              backdropFilter: 'blur(16px)',
-              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                ? 'rgba(30,30,30,0.8)' 
+                : 'rgba(255,255,255,0.8)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+              boxShadow: isDark 
+                ? '0 4px 16px rgba(0,0,0,0.3)' 
+                : '0 4px 16px rgba(0,0,0,0.08)',
               color: theme.hintColor,
               textDecoration: 'none',
-              opacity: 0.7,
-              transition: 'opacity 0.2s ease',
             }}
-            onMouseEnter={(e) => e.currentTarget.style.opacity = '1'}
-            onMouseLeave={(e) => e.currentTarget.style.opacity = '0.7'}
           >
             <Settings size={20} />
           </a>
