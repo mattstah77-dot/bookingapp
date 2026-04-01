@@ -118,10 +118,15 @@ export default function AdminPage() {
   const [editModalService, setEditModalService] = useState<Service | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Сенсоры для drag-and-drop
+  // Сенсоры для drag-and-drop - настроены для корректной работы на мобильных
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
+    useSensor(TouchSensor, { 
+      activationConstraint: { 
+        delay: 250,
+        tolerance: 8,
+      } 
+    }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -603,7 +608,7 @@ export default function AdminPage() {
         paddingBottom: 'env(safe-area-inset-bottom, 24px)',
       }}
     >
-      <div style={{ maxWidth: '440px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '440px', margin: '0 auto', paddingBottom: '80px' }}>
         {/* Кнопка назад - только иконка */}
         <button
           onClick={goBack}
@@ -640,96 +645,14 @@ export default function AdminPage() {
           </h1>
         </div>
 
-        {/* Табы */}
-        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px' }}>
-          <button
-            onClick={() => setActiveTab('bookings')}
-            style={{ 
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '14px',
-              borderRadius: '14px',
-              fontSize: '14px',
-              fontWeight: 600,
-              transition: 'all 0.3s ease',
-              background: activeTab === 'bookings' 
-                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-                : 'transparent',
-              color: activeTab === 'bookings' 
-                ? theme.buttonTextColor 
-                : theme.hintColor,
-              border: `1px solid ${activeTab === 'bookings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
-              cursor: 'pointer',
-            }}
-          >
-            <ClipboardList size={18} />
-            Записи
-          </button>
-          <button
-            onClick={() => setActiveTab('services')}
-            style={{ 
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '14px',
-              borderRadius: '14px',
-              fontSize: '14px',
-              fontWeight: 600,
-              transition: 'all 0.3s ease',
-              background: activeTab === 'services' 
-                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-                : 'transparent',
-              color: activeTab === 'services' 
-                ? theme.buttonTextColor 
-                : theme.hintColor,
-              border: `1px solid ${activeTab === 'services' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
-              cursor: 'pointer',
-            }}
-          >
-            <Scissors size={18} />
-            Услуги
-          </button>
-          <button
-            onClick={() => setActiveTab('settings')}
-            style={{ 
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '8px',
-              padding: '14px',
-              borderRadius: '14px',
-              fontSize: '14px',
-              fontWeight: 600,
-              transition: 'all 0.3s ease',
-              background: activeTab === 'settings' 
-                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-                : 'transparent',
-              color: activeTab === 'settings' 
-                ? theme.buttonTextColor 
-                : theme.hintColor,
-              border: `1px solid ${activeTab === 'settings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
-              cursor: 'pointer',
-            }}
-          >
-            <Bell size={18} />
-            Настройки
-          </button>
-        </div>
-
         {activeTab === 'settings' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'fadeIn 0.3s ease' }}>
             {/* Включение/выключение напоминаний */}
             <div 
               className="glass-card"
               style={{
-                borderRadius: '20px',
-                padding: '24px',
+                borderRadius: '16px',
+                padding: '16px',
                 background: isDark 
                   ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
                   : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
@@ -739,19 +662,19 @@ export default function AdminPage() {
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div>
-                  <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: '0 0 4px 0' }}>
+                  <h3 style={{ color: theme.textColor, fontSize: '14px', fontWeight: 600, margin: '0 0 2px 0' }}>
                     Напоминания клиентам
                   </h3>
-                  <p style={{ color: theme.hintColor, fontSize: '13px', margin: 0 }}>
+                  <p style={{ color: theme.hintColor, fontSize: '12px', margin: 0 }}>
                     Отправлять напоминания о записи
                   </p>
                 </div>
                 <button
                   onClick={() => setReminderSettings(prev => ({ ...prev, enabled: !prev.enabled }))}
                   style={{
-                    width: '52px',
-                    height: '30px',
-                    borderRadius: '15px',
+                    width: '44px',
+                    height: '26px',
+                    borderRadius: '13px',
                     border: 'none',
                     background: reminderSettings.enabled ? theme.buttonColor : (isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'),
                     cursor: 'pointer',
@@ -762,10 +685,10 @@ export default function AdminPage() {
                   <div style={{
                     position: 'absolute',
                     top: '3px',
-                    left: reminderSettings.enabled ? '23px' : '3px',
-                    width: '24px',
-                    height: '24px',
-                    borderRadius: '12px',
+                    left: reminderSettings.enabled ? '20px' : '3px',
+                    width: '20px',
+                    height: '20px',
+                    borderRadius: '10px',
                     background: '#fff',
                     transition: 'all 0.3s ease',
                   }} />
@@ -777,8 +700,8 @@ export default function AdminPage() {
             <div 
               className="glass-card"
               style={{ 
-                borderRadius: '20px',
-                padding: '24px',
+                borderRadius: '16px',
+                padding: '16px',
                 background: isDark 
                   ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
                   : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
@@ -788,14 +711,14 @@ export default function AdminPage() {
                 pointerEvents: reminderSettings.enabled ? 'auto' : 'none',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <Clock size={20} style={{ color: theme.buttonColor }} />
-                <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                <Clock size={16} style={{ color: theme.buttonColor }} />
+                <h3 style={{ color: theme.textColor, fontSize: '14px', fontWeight: 600, margin: 0 }}>
                   Время напоминания
                 </h3>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '8px' }}>
                 {[
                   { value: 60, label: '1 час' },
                   { value: 120, label: '2 часа' },
@@ -809,8 +732,8 @@ export default function AdminPage() {
                       display: 'flex',
                       alignItems: 'center',
                       justifyContent: 'space-between',
-                      padding: '14px 18px',
-                      borderRadius: '14px',
+                      padding: '10px 12px',
+                      borderRadius: '10px',
                       border: `1px solid ${reminderSettings.defaultMinutesBefore === option.value ? theme.buttonColor : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
                       background: reminderSettings.defaultMinutesBefore === option.value 
                         ? `${theme.buttonColor}15`
@@ -818,11 +741,11 @@ export default function AdminPage() {
                       cursor: 'pointer',
                     }}
                   >
-                    <span style={{ color: theme.textColor, fontSize: '14px', fontWeight: 500 }}>
+                    <span style={{ color: theme.textColor, fontSize: '13px', fontWeight: 500 }}>
                       {option.label}
                     </span>
                     {reminderSettings.defaultMinutesBefore === option.value && (
-                      <CheckCircle size={18} style={{ color: theme.buttonColor }} />
+                      <CheckCircle size={14} style={{ color: theme.buttonColor }} />
                     )}
                   </button>
                 ))}
@@ -833,8 +756,8 @@ export default function AdminPage() {
             <div 
               className="glass-card"
               style={{ 
-                borderRadius: '20px',
-                padding: '24px',
+                borderRadius: '16px',
+                padding: '16px',
                 background: isDark 
                   ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
                   : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
@@ -842,28 +765,28 @@ export default function AdminPage() {
                 border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-                <CalendarDays size={20} style={{ color: theme.buttonColor }} />
-                <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, margin: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                <CalendarDays size={16} style={{ color: theme.buttonColor }} />
+                <h3 style={{ color: theme.textColor, fontSize: '14px', fontWeight: 600, margin: 0 }}>
                   Лимит записей для клиента
                 </h3>
               </div>
               
-              <p style={{ color: theme.hintColor, fontSize: '13px', margin: '0 0 16px 0' }}>
-                Максимальное количество активных записей, которое один клиент может иметь одновременно
+              <p style={{ color: theme.hintColor, fontSize: '11px', margin: '0 0 12px 0' }}>
+                Максимальное количество активных записей
               </p>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                 <button
                   onClick={() => setMaxActiveBookings(prev => Math.max(1, prev - 1))}
                   style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
                     border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
                     background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
                     color: theme.textColor,
-                    fontSize: '20px',
+                    fontSize: '18px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -876,29 +799,29 @@ export default function AdminPage() {
                   style={{ 
                     flex: 1,
                     textAlign: 'center',
-                    padding: '12px',
-                    borderRadius: '12px',
+                    padding: '10px',
+                    borderRadius: '10px',
                     background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
                     border: `1px solid ${theme.buttonColor}30`,
                   }}
                 >
-                  <span style={{ color: theme.textColor, fontSize: '24px', fontWeight: 700 }}>
+                  <span style={{ color: theme.textColor, fontSize: '20px', fontWeight: 700 }}>
                     {maxActiveBookings}
                   </span>
-                  <span style={{ color: theme.hintColor, fontSize: '14px', marginLeft: '8px' }}>
+                  <span style={{ color: theme.hintColor, fontSize: '12px', marginLeft: '6px' }}>
                     {maxActiveBookings === 1 ? 'запись' : maxActiveBookings <= 4 ? 'записи' : 'записей'}
                   </span>
                 </div>
                 <button
                   onClick={() => setMaxActiveBookings(prev => Math.min(10, prev + 1))}
                   style={{
-                    width: '40px',
-                    height: '40px',
-                    borderRadius: '12px',
+                    width: '36px',
+                    height: '36px',
+                    borderRadius: '10px',
                     border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
                     background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
                     color: theme.textColor,
-                    fontSize: '20px',
+                    fontSize: '18px',
                     cursor: 'pointer',
                     display: 'flex',
                     alignItems: 'center',
@@ -915,12 +838,12 @@ export default function AdminPage() {
               onClick={handleSaveReminderSettings}
               disabled={savingSettings}
               style={{ 
-                padding: '18px',
-                borderRadius: '16px',
+                padding: '14px',
+                borderRadius: '14px',
                 border: 'none',
                 background: `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`,
                 color: theme.buttonTextColor,
-                fontSize: '16px',
+                fontSize: '14px',
                 fontWeight: 600,
                 cursor: savingSettings ? 'not-allowed' : 'pointer',
                 opacity: savingSettings ? 0.7 : 1,
@@ -1342,6 +1265,108 @@ export default function AdminPage() {
         )}
       </div>
 
+      {/* Фиксированная панель табов внизу */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '10px 12px',
+          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
+          background: isDark 
+            ? 'rgba(20,20,20,0.95)' 
+            : 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px)',
+          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+          display: 'flex',
+          gap: '6px',
+          zIndex: 100,
+        }}
+      >
+        <button
+          onClick={() => setActiveTab('bookings')}
+          style={{ 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '12px 6px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            background: activeTab === 'bookings' 
+              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+              : 'transparent',
+            color: activeTab === 'bookings' 
+              ? theme.buttonTextColor 
+              : theme.hintColor,
+            border: `1px solid ${activeTab === 'bookings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            cursor: 'pointer',
+            minWidth: 0,
+          }}
+        >
+          <ClipboardList size={14} />
+          Записи
+        </button>
+        <button
+          onClick={() => setActiveTab('services')}
+          style={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '12px 6px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            background: activeTab === 'services' 
+              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+              : 'transparent',
+            color: activeTab === 'services' 
+              ? theme.buttonTextColor 
+              : theme.hintColor,
+            border: `1px solid ${activeTab === 'services' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            cursor: 'pointer',
+            minWidth: 0,
+          }}
+        >
+          <Scissors size={14} />
+          Услуги
+        </button>
+        <button
+          onClick={() => setActiveTab('settings')}
+          style={{ 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '12px 6px',
+            borderRadius: '12px',
+            fontSize: '12px',
+            fontWeight: 600,
+            transition: 'all 0.3s ease',
+            background: activeTab === 'settings' 
+              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+              : 'transparent',
+            color: activeTab === 'settings' 
+              ? theme.buttonTextColor 
+              : theme.hintColor,
+            border: `1px solid ${activeTab === 'settings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            cursor: 'pointer',
+            minWidth: 0,
+          }}
+        >
+          <Bell size={14} />
+          Настройки
+        </button>
+      </div>
+
       {/* ========== SERVICE EDIT MODAL ========== */}
       {showEditModal && (
         <ServiceEditModalRenderer
@@ -1431,7 +1456,6 @@ function SortableServiceCard({
           padding: '12px 14px',
           gap: '10px',
           cursor: isDragging ? 'grabbing' : 'pointer',
-          touchAction: 'none',
           minHeight: '56px',
         }}
       >

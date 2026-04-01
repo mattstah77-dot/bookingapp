@@ -328,45 +328,10 @@ export default function BookingPage() {
         paddingBottom: 'env(safe-area-inset-bottom, 24px)',
       }}
     >
-      <div style={{ maxWidth: '440px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '440px', margin: '0 auto', paddingBottom: '80px' }}>
         {/* Заголовок */}
         {step === 'services' && (
-          <>
-            <Greeting />
-            
-            {/* Кнопка Мои записи и переключатель темы */}
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-              <a
-                href={getUrlWithBotId('/my-bookings')}
-                style={{ 
-                  flex: 1,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '12px 20px',
-                  borderRadius: '14px',
-                  background: isDark 
-                    ? 'rgba(255,255,255,0.08)' 
-                    : 'rgba(0,0,0,0.04)',
-                  border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
-                  color: theme.hintColor,
-                  fontSize: '14px',
-                  fontWeight: 500,
-                  textDecoration: 'none',
-                }}
-              >
-                <CalendarIcon size={18} />
-                Мои записи
-              </a>
-              <ThemeToggle
-                setThemeMode={setThemeMode}
-                isDark={isDark}
-                buttonColor={theme.buttonColor}
-                hintColor={theme.hintColor}
-              />
-            </div>
-          </>
+          <Greeting />
         )}
 
         {/* Навигация назад */}
@@ -576,11 +541,61 @@ export default function BookingPage() {
         />
       )}
 
+      {/* Фиксированная панель навигации внизу */}
+      <div 
+        style={{
+          position: 'fixed', 
+          bottom: 0,
+          left: 0,
+          right: 0,
+          padding: '12px 16px',
+          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+          background: isDark 
+            ? 'rgba(20,20,20,0.95)' 
+            : 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px)',
+          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+          display: 'flex',
+          gap: '10px',
+          zIndex: 100,
+        }}
+      >
+        <a
+          href={getUrlWithBotId('/my-bookings')}
+          style={{ 
+            flex: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '8px',
+            padding: '14px 20px',
+            borderRadius: '14px',
+            background: isDark 
+              ? 'rgba(255,255,255,0.08)' 
+              : 'rgba(0,0,0,0.04)',
+            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+            color: theme.hintColor,
+            fontSize: '14px',
+            fontWeight: 500,
+            textDecoration: 'none',
+          }}
+        >
+          <CalendarIcon size={18} />
+          Мои записи
+        </a>
+        <ThemeToggle
+          setThemeMode={setThemeMode}
+          isDark={isDark}
+          buttonColor={theme.buttonColor}
+          hintColor={theme.hintColor}
+        />
+      </div>
+
       {/* Кнопка админ-панели - полупрозрачная */}
       {isAdmin && (
         <div style={{ 
           position: 'fixed', 
-          bottom: '20px', 
+          bottom: 'calc(88px + env(safe-area-inset-bottom, 0px))', 
           right: '20px',
           zIndex: 100,
         }}>
