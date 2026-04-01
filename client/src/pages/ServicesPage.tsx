@@ -106,6 +106,7 @@ function SortableServiceCard({
           padding: '12px 14px',
           gap: '12px',
           cursor: isDragging ? 'grabbing' : 'pointer',
+          userSelect: 'none',
           minHeight: '60px',
         }}
       >
@@ -239,13 +240,13 @@ export default function ServicesPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 10,
+        distance: 8,
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 250,
-        tolerance: 8,
+        delay: 0,
+        tolerance: 5,
       },
     }),
     useSensor(KeyboardSensor, {

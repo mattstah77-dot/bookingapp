@@ -4,8 +4,8 @@ import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import { Alert } from '../components/Alert/Alert';
 import { 
   ChevronLeft, ChevronRight, CheckCircle, XCircle, Trash2, 
-  CalendarDays, Users, ClipboardList, Scissors, Bell, Clock,
-  Plus, Edit2, Eye, EyeOff, GripVertical
+  CalendarDays, Users, ClipboardList, Scissors, Clock,
+  Plus, Edit2, Eye, EyeOff, GripVertical, Settings
 } from 'lucide-react';
 import {
   DndContext,
@@ -118,15 +118,10 @@ export default function AdminPage() {
   const [editModalService, setEditModalService] = useState<Service | null>(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
-  // Сенсоры для drag-and-drop - настроены для корректной работы на мобильных
+  // Сенсоры для drag-and-drop
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 10 } }),
-    useSensor(TouchSensor, { 
-      activationConstraint: { 
-        delay: 250,
-        tolerance: 8,
-      } 
-    }),
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 0, tolerance: 5 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates })
   );
 
@@ -1265,105 +1260,104 @@ export default function AdminPage() {
         )}
       </div>
 
-      {/* Фиксированная панель табов внизу */}
+      {/* Фиксированная панель табов внизу - компактная, полупрозрачная */}
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
+          bottom: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'auto',
           padding: '10px 12px',
           paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
-            ? 'rgba(20,20,20,0.95)' 
-            : 'rgba(255,255,255,0.95)',
+            ? 'rgba(30,30,30,0.85)' 
+            : 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(20px)',
-          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+          borderRadius: '24px',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+          boxShadow: isDark 
+            ? '0 8px 32px rgba(0,0,0,0.4)' 
+            : '0 8px 32px rgba(0,0,0,0.1)',
           display: 'flex',
-          gap: '6px',
+          gap: '8px',
           zIndex: 100,
         }}
       >
         <button
           onClick={() => setActiveTab('bookings')}
           style={{ 
-            flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '4px',
-            padding: '12px 6px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: 600,
-            transition: 'all 0.3s ease',
+            padding: '12px 18px',
+            borderRadius: '18px',
             background: activeTab === 'bookings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
             color: activeTab === 'bookings' 
               ? theme.buttonTextColor 
               : theme.hintColor,
-            border: `1px solid ${activeTab === 'bookings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            border: 'none',
             cursor: 'pointer',
-            minWidth: 0,
+            minWidth: '68px',
+            transition: 'all 0.2s ease',
           }}
         >
-          <ClipboardList size={14} />
-          Записи
+          <ClipboardList size={20} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Записи</span>
         </button>
         <button
           onClick={() => setActiveTab('services')}
           style={{
-            flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '4px',
-            padding: '12px 6px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: 600,
-            transition: 'all 0.3s ease',
+            padding: '12px 18px',
+            borderRadius: '18px',
             background: activeTab === 'services' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
             color: activeTab === 'services' 
               ? theme.buttonTextColor 
               : theme.hintColor,
-            border: `1px solid ${activeTab === 'services' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            border: 'none',
             cursor: 'pointer',
-            minWidth: 0,
+            minWidth: '68px',
+            transition: 'all 0.2s ease',
           }}
         >
-          <Scissors size={14} />
-          Услуги
+          <Scissors size={20} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Услуги</span>
         </button>
         <button
           onClick={() => setActiveTab('settings')}
           style={{ 
-            flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
             gap: '4px',
-            padding: '12px 6px',
-            borderRadius: '12px',
-            fontSize: '12px',
-            fontWeight: 600,
-            transition: 'all 0.3s ease',
+            padding: '12px 18px',
+            borderRadius: '18px',
             background: activeTab === 'settings' 
               ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
               : 'transparent',
             color: activeTab === 'settings' 
               ? theme.buttonTextColor 
               : theme.hintColor,
-            border: `1px solid ${activeTab === 'settings' ? 'transparent' : (isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)')}`,
+            border: 'none',
             cursor: 'pointer',
-            minWidth: 0,
+            minWidth: '68px',
+            transition: 'all 0.2s ease',
           }}
         >
-          <Bell size={14} />
-          Настройки
+          <Settings size={20} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Настройки</span>
         </button>
       </div>
 
@@ -1456,6 +1450,7 @@ function SortableServiceCard({
           padding: '12px 14px',
           gap: '10px',
           cursor: isDragging ? 'grabbing' : 'pointer',
+          userSelect: 'none',
           minHeight: '56px',
         }}
       >

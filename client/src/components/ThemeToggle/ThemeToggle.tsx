@@ -5,12 +5,42 @@ interface ThemeToggleProps {
   isDark: boolean;
   buttonColor: string;
   hintColor: string;
+  compact?: boolean;
 }
 
-export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor }: ThemeToggleProps) {
+export function ThemeToggle({ setThemeMode, isDark, buttonColor, hintColor, compact = false }: ThemeToggleProps) {
   const toggleTheme = () => {
     setThemeMode(isDark ? 'light' : 'dark');
   };
+
+  if (compact) {
+    return (
+      <button
+        onClick={toggleTheme}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '4px',
+          padding: '12px 16px',
+          borderRadius: '18px',
+          border: 'none',
+          background: 'transparent',
+          cursor: 'pointer',
+          transition: 'all 0.2s ease',
+          minWidth: '56px',
+        }}
+        title={isDark ? 'Светлая тема' : 'Тёмная тема'}
+      >
+        {isDark ? (
+          <Sun size={20} style={{ color: hintColor }} />
+        ) : (
+          <Moon size={20} style={{ color: hintColor }} />
+        )}
+      </button>
+    );
+  }
 
   return (
     <button

@@ -2,7 +2,7 @@ import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useTelegramTheme } from '../hooks/useTelegram';
 import { useBooking } from '../hooks/useBooking';
 import { useTimeSlots } from '../hooks/useTimeSlots';
-import type { Service } from '../types/booking';
+import type { Service, Booking } from '../types/booking';
 import { getBotIdFromUrl, getTelegramId, getUrlWithBotId } from '../utils';
 import { Greeting } from '../components/Greeting/Greeting';
 import { ServiceCard } from '../components/ServiceCard/ServiceCard';
@@ -12,7 +12,7 @@ import { TimeSlots } from '../components/TimeSlots/TimeSlots';
 import { BackButton } from '../components/BackButton/BackButton';
 import { Button } from '../components/Button/Button';
 import { ThemeToggle } from '../components/ThemeToggle/ThemeToggle';
-import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon } from 'lucide-react';
+import { Check, ArrowRight, RotateCcw, Settings, Calendar as CalendarIcon, Scissors, ClipboardList } from 'lucide-react';
 
 const API_BASE = '/api';
 
@@ -45,6 +45,16 @@ export default function BookingPage() {
   const [bookingSuccess, setBookingSuccess] = useState(false);
   const [selectedServiceForModal, setSelectedServiceForModal] = useState<Service | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  // Табы навигации: 'services' - услуги, 'bookings' - мои записи
+  const [activeTab, setActiveTab] = useState<'services' | 'bookings'>('services');
+  
+  // Записи пользователя
+  const [myBookings, setMyBookings] = useState<{
+    upcoming: Booking[];
+    past: Booking[];
+  }>({ upcoming: [], past: [] });
+  const [bookingsLoading, setBookingsLoading] = useState(false);
 
   const {
     selectedService,
@@ -90,6 +100,33 @@ export default function BookingPage() {
  
  checkAdmin();
  }, []);
+
+ // Загрузка записей пользователя
+ const fetchMyBookings = useCallback(async () => {
+ const telegramId = getTelegramId();
+ if (!telegramId) return;
+ 
+ setBookingsLoading(true);
+ try {
+ const res = await fetch(`${API_BASE}/my-bookings`, { headers: getApiHeaders() });
+ const data = await res.json();
+ setMyBookings({
+ upcoming: data.upcoming || [],
+ past: data.past || [],
+ });
+ } catch (err) {
+ console.error('Failed to fetch bookings:', err);
+ } finally {
+ setBookingsLoading(false);
+ }
+ }, []);
+
+ // При переключении на таб "Записи" - загружаем данные
+ useEffect(() => {
+ if (activeTab === 'bookings') {
+ fetchMyBookings();
+ }
+ }, [activeTab, fetchMyBookings]);
 
   // Умная генерация слотов на клиенте
   const { 
@@ -355,176 +392,294 @@ export default function BookingPage() {
           </div>
         )}
 
-        {/* ЭКРАН 1: Список услуг */}
-        {step === 'services' && (
-          <div 
-            style={{ 
-              display: 'flex',
-              flexDirection: 'column', 
-              gap: '10px',
-            }}
-          >
-            {services.map((service, index) => (
-              <ServiceCard
-                key={service.id}
-                service={service}
-                onSelect={setSelectedServiceForModal}
-                index={index}
-              />
-            ))}
-            {services.length === 0 && !error && (
-              <div style={{ 
-                textAlign: 'center', 
-                padding: '64px 0', 
-                color: theme.hintColor,
-              }}>
-                Загрузка услуг...
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ЭКРАН 2: Календарь и выбор времени */}
-        {step === 'calendar' && selectedService && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {/* Выбранная услуга */}
-            <div 
-              style={{ 
-                borderRadius: '18px',
-                padding: '16px',
-                background: isDark 
-                  ? 'rgba(35,35,35,0.9)' 
-                  : 'rgba(255,255,255,0.9)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
-              }}
-            >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>
-                  {selectedService.name}
-                </span>
-                <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '18px' }}>
-                  {selectedService.price} ₽
-                </span>
-              </div>
-            </div>
-
-            {/* Календарь */}
-            <Calendar
-              selectedDate={selectedDate}
-              onDateSelect={selectDate}
-            />
-
-            {/* Слоты времени */}
-            {selectedDate && (
-              <TimeSlots
-                slots={generatedSlots}
-                selectedSlot={selectedSlot}
-                onSlotSelect={selectSlot}
-                loading={slotsLoading}
-              />
-            )}
-          </div>
-        )}
-
-        
-
-        {/* ЭКРАН 3: Подтверждение */}
-        {step === 'confirm' && selectedService && selectedDate && selectedSlot && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            {/* Карточка подтверждения */}
-            <div 
-              className="glass-card"
-              style={{ 
-                borderRadius: '28px',
-                padding: '32px',
-                background: isDark 
-                  ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
-                  : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
-                backdropFilter: 'blur(24px)',
-                border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
-                boxShadow: isDark 
-                  ? '0 16px 48px rgba(0,0,0,0.5)' 
-                  : '0 16px 48px rgba(0,0,0,0.1)',
-                position: 'relative',
-                overflow: 'hidden',
-              }}
-            >
-              <div style={{
-                position: 'absolute',
-                top: '-30px',
-                right: '-30px',
-                width: '100px',
-                height: '100px',
-                background: `radial-gradient(circle, ${theme.buttonColor}20 0%, transparent 70%)`,
-                borderRadius: '50%',
-              }} />
-              
-              <div style={{ position: 'relative', zIndex: 1 }}>
-                <h3 
-                  style={{ 
+        {/* Контент в зависимости от активного таба */}
+        {activeTab === 'services' ? (
+          <>
+            {/* ЭКРАН 1: Список услуг */}
+            {step === 'services' && (
+              <div 
+                style={{ 
+                  display: 'flex',
+                  flexDirection: 'column', 
+                  gap: '10px',
+                }}
+              >
+                {services.map((service, index) => (
+                  <ServiceCard
+                    key={service.id}
+                    service={service}
+                    onSelect={setSelectedServiceForModal}
+                    index={index}
+                  />
+                ))}
+                {services.length === 0 && !error && (
+                  <div style={{ 
                     textAlign: 'center',
-                    fontSize: '22px', 
-                    fontWeight: 700,
-                    marginBottom: '28px',
-                    color: theme.textColor,
+                    padding: '64px 0', 
+                    color: theme.hintColor,
+                  }}>
+                    Загрузка услуг...
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ЭКРАН 2: Календарь и выбор времени */}
+            {step === 'calendar' && selectedService && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {/* Выбранная услуга */}
+                <div 
+                  style={{ 
+                    borderRadius: '18px',
+                    padding: '16px',
+                    background: isDark 
+                      ? 'rgba(35,35,35,0.9)' 
+                      : 'rgba(255,255,255,0.9)',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
                   }}
                 >
-                  Подтвердите запись
-                </h3>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
-                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Услуга</span>
-                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedService.name}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
-                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Дата</span>
-                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{formattedDate}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
-                    <span style={{ color: theme.hintColor, fontSize: '15px' }}>Время</span>
-                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedSlot}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
-                    <span style={{ color: theme.hintColor, fontSize: '15px', fontWeight: 500 }}>Итого</span>
-                    <span style={{ fontWeight: 700, fontSize: '24px', color: theme.buttonColor }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>
+                      {selectedService.name}
+                    </span>
+                    <span style={{ color: theme.buttonColor, fontWeight: 700, fontSize: '18px' }}>
                       {selectedService.price} ₽
                     </span>
                   </div>
                 </div>
+
+                {/* Календарь */}
+                <Calendar
+                  selectedDate={selectedDate}
+                  onDateSelect={selectDate}
+                />
+
+                {/* Слоты времени */}
+                {selectedDate && (
+                  <TimeSlots
+                    slots={generatedSlots}
+                    selectedSlot={selectedSlot}
+                    onSlotSelect={selectSlot}
+                    loading={slotsLoading}
+                  />
+                )}
               </div>
-            </div>
+            )}
 
-            {/* Кнопка подтверждения */}
-            <Button
-              onClick={handleBooking}
-              loading={submitting}
-              size="lg"
-            >
-              <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                Подтвердить запись
-                <ArrowRight size={20} />
-              </span>
-            </Button>
+            
 
-            {/* Кнопка сброса */}
-            <button
-              onClick={handleReset}
-              style={{ 
-                display: 'block',
-                width: '100%',
-                textAlign: 'center',
-                padding: '16px',
-                color: theme.hintColor,
-                fontSize: '14px',
-                fontWeight: 500,
-                background: 'transparent',
-                border: 'none',
-                cursor: 'pointer',
-              }}
-            >
-              Начать заново
-            </button>
+            {/* ЭКРАН 3: Подтверждение */}
+            {step === 'confirm' && selectedService && selectedDate && selectedSlot && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                {/* Карточка подтверждения */}
+                <div 
+                  className="glass-card"
+                  style={{ 
+                    borderRadius: '28px',
+                    padding: '32px',
+                    background: isDark 
+                      ? 'linear-gradient(135deg, rgba(35,35,35,0.98), rgba(25,25,25,0.95))' 
+                      : 'linear-gradient(135deg, rgba(255,255,255,0.98), rgba(252,252,252,0.95))',
+                    backdropFilter: 'blur(24px)',
+                    border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                    boxShadow: isDark 
+                      ? '0 16px 48px rgba(0,0,0,0.5)' 
+                      : '0 16px 48px rgba(0,0,0,0.1)',
+                    position: 'relative',
+                    overflow: 'hidden',
+                  }}
+                >
+                  <div style={{
+                    position: 'absolute',
+                    top: '-30px',
+                    right: '-30px',
+                    width: '100px',
+                    height: '100px',
+                    background: `radial-gradient(circle, ${theme.buttonColor}20 0%, transparent 70%)`,
+                    borderRadius: '50%',
+                  }} />
+                  
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <h3 
+                      style={{ 
+                        textAlign: 'center',
+                        fontSize: '22px', 
+                        fontWeight: 700,
+                        marginBottom: '28px',
+                        color: theme.textColor,
+                      }}
+                    >
+                      Подтвердите запись
+                    </h3>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                        <span style={{ color: theme.hintColor, fontSize: '15px' }}>Услуга</span>
+                        <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedService.name}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                        <span style={{ color: theme.hintColor, fontSize: '15px' }}>Дата</span>
+                        <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{formattedDate}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: `1px solid ${theme.hintColor}15` }}>
+                        <span style={{ color: theme.hintColor, fontSize: '15px' }}>Время</span>
+                        <span style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>{selectedSlot}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px' }}>
+                        <span style={{ color: theme.hintColor, fontSize: '15px', fontWeight: 500 }}>Итого</span>
+                        <span style={{ fontWeight: 700, fontSize: '24px', color: theme.buttonColor }}>
+                          {selectedService.price} ₽
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Кнопка подтверждения */}
+                <Button
+                  onClick={handleBooking}
+                  loading={submitting}
+                  size="lg"
+                >
+                  <span style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    Подтвердить запись
+                    <ArrowRight size={20} />
+                  </span>
+                </Button>
+
+                {/* Кнопка сброса */}
+                <button
+                  onClick={handleReset}
+                  style={{ 
+                    display: 'block',
+                    width: '100%',
+                    textAlign: 'center',
+                    padding: '16px',
+                    color: theme.hintColor,
+                    fontSize: '14px',
+                    fontWeight: 500,
+                    background: 'transparent',
+                    border: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Начать заново
+                </button>
+              </div>
+            )}
+          </>
+        ) : (
+          /* Таб "Записи" - показываем записи пользователя */
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            {bookingsLoading ? (
+              <div style={{ textAlign: 'center', padding: '64px 0', color: theme.hintColor }}>
+                Загрузка...
+              </div>
+            ) : myBookings.upcoming.length === 0 && myBookings.past.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '64px 0', color: theme.hintColor }}>
+                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+                  <CalendarIcon size={48} style={{ opacity: 0.3 }} />
+                </div>
+                <p>У вас пока нет записей</p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Предстоящие записи */}
+                {myBookings.upcoming.length > 0 && (
+                  <>
+                    <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
+                      Предстоящие
+                    </h3>
+                    {myBookings.upcoming.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="glass-card"
+                        style={{ 
+                          borderRadius: '18px',
+                          padding: '18px',
+                          background: isDark 
+                            ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                            : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                          backdropFilter: 'blur(20px)',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '10px' }}>
+                          <div>
+                            <div style={{ fontWeight: 700, color: theme.textColor, fontSize: '16px' }}>
+                              {booking.serviceName}
+                            </div>
+                            <div style={{ fontSize: '14px', color: theme.hintColor, marginTop: '4px' }}>
+                              {new Date(booking.date + 'T00:00:00').toLocaleDateString('ru-RU', { weekday: 'short', day: 'numeric', month: 'short' })} в {booking.time}
+                            </div>
+                          </div>
+                          <span style={{ 
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                            background: 'rgba(34,197,94,0.15)',
+                            color: '#22c55e',
+                          }}>
+                            Подтверждено
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 700, color: theme.buttonColor, fontSize: '18px' }}>
+                            {booking.price} ₽
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+                
+                {/* Прошедшие записи */}
+                {myBookings.past.length > 0 && (
+                  <>
+                    <h3 style={{ color: theme.textColor, fontSize: '16px', fontWeight: 600, marginTop: '16px', marginBottom: '8px' }}>
+                      Прошедшие
+                    </h3>
+                    {myBookings.past.map((booking) => (
+                      <div
+                        key={booking.id}
+                        className="glass-card"
+                        style={{ 
+                          borderRadius: '18px',
+                          padding: '18px',
+                          background: isDark 
+                            ? 'rgba(35,35,35,0.6)' 
+                            : 'rgba(255,255,255,0.6)',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.04)'}`,
+                          opacity: 0.7,
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <div style={{ fontWeight: 600, color: theme.textColor, fontSize: '15px' }}>
+                              {booking.serviceName}
+                            </div>
+                            <div style={{ fontSize: '13px', color: theme.hintColor, marginTop: '4px' }}>
+                              {new Date(booking.date + 'T00:00:00').toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })} в {booking.time}
+                            </div>
+                          </div>
+                          <span style={{ 
+                            padding: '6px 12px',
+                            borderRadius: '10px',
+                            fontSize: '11px',
+                            fontWeight: 600,
+                            background: theme.hintColor + '20',
+                            color: theme.hintColor,
+                          }}>
+                            {booking.status === 'cancelled' ? 'Отменено' : 'Завершено'}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -541,53 +696,88 @@ export default function BookingPage() {
         />
       )}
 
-      {/* Фиксированная панель навигации внизу */}
+      {/* Фиксированная панель навигации внизу - компактная, полупрозрачная */}
       <div 
         style={{
           position: 'fixed', 
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '12px 16px',
-          paddingBottom: 'calc(12px + env(safe-area-inset-bottom, 0px))',
+          bottom: '16px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          width: 'auto',
+          padding: '10px 12px',
+          paddingBottom: 'calc(10px + env(safe-area-inset-bottom, 0px))',
           background: isDark 
-            ? 'rgba(20,20,20,0.95)' 
-            : 'rgba(255,255,255,0.95)',
+            ? 'rgba(30,30,30,0.85)' 
+            : 'rgba(255,255,255,0.85)',
           backdropFilter: 'blur(20px)',
-          borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'}`,
+          borderRadius: '24px',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
+          boxShadow: isDark 
+            ? '0 8px 32px rgba(0,0,0,0.4)' 
+            : '0 8px 32px rgba(0,0,0,0.1)',
           display: 'flex',
-          gap: '10px',
+          gap: '8px',
           zIndex: 100,
         }}
       >
-        <a
-          href={getUrlWithBotId('/my-bookings')}
+        <button
+          onClick={() => setActiveTab('services')}
           style={{ 
-            flex: 1,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '8px',
-            padding: '14px 20px',
-            borderRadius: '14px',
-            background: isDark 
-              ? 'rgba(255,255,255,0.08)' 
-              : 'rgba(0,0,0,0.04)',
-            border: `1px solid ${isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.06)'}`,
-            color: theme.hintColor,
-            fontSize: '14px',
-            fontWeight: 500,
-            textDecoration: 'none',
+            gap: '4px',
+            padding: '12px 20px',
+            borderRadius: '18px',
+            background: activeTab === 'services' 
+              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+              : 'transparent',
+            color: activeTab === 'services' 
+              ? theme.buttonTextColor 
+              : theme.hintColor,
+            border: 'none',
+            cursor: 'pointer',
+            minWidth: '72px',
+            transition: 'all 0.2s ease',
           }}
         >
-          <CalendarIcon size={18} />
-          Мои записи
-        </a>
+          <Scissors size={20} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Услуги</span>
+        </button>
+        
+        <button
+          onClick={() => setActiveTab('bookings')}
+          style={{ 
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '4px',
+            padding: '12px 20px',
+            borderRadius: '18px',
+            background: activeTab === 'bookings' 
+              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+              : 'transparent',
+            color: activeTab === 'bookings' 
+              ? theme.buttonTextColor 
+              : theme.hintColor,
+            border: 'none',
+            cursor: 'pointer',
+            minWidth: '72px',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <ClipboardList size={20} />
+          <span style={{ fontSize: '11px', fontWeight: 600 }}>Записи</span>
+        </button>
+        
         <ThemeToggle
           setThemeMode={setThemeMode}
           isDark={isDark}
           buttonColor={theme.buttonColor}
           hintColor={theme.hintColor}
+          compact
         />
       </div>
 
