@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import type { TelegramTheme } from '../types/booking';
 
 // Светлая тема
