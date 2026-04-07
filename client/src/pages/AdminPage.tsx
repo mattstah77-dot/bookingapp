@@ -165,12 +165,23 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchBotType = async () => {
       const botId = getBotIdFromUrl();
-      if (!botId) return;
+      
+      // Если нет botId - показываем форму входа (booking по умолчанию)
+      if (!botId) {
+        setBotType('booking');
+        return;
+      }
       
       try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        
         const res = await fetch(`${API_BASE}/bots/${botId}/type`, {
           headers: { 'x-bot-id': String(botId) },
+          signal: controller.signal,
         });
+        clearTimeout(timeoutId);
+        
         const data = await res.json();
         setBotType(data.type || 'booking');
         
@@ -180,6 +191,7 @@ export default function AdminPage() {
         }
       } catch (err) {
         console.error('Failed to fetch bot type:', err);
+        // При ошибке считаем что это booking бот
         setBotType('booking');
       }
     };
