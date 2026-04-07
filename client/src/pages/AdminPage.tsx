@@ -94,7 +94,6 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export default function AdminPage() {
-  console.log('[Admin] Component rendering, URL:', window.location.href);
   const theme = useTelegramTheme();
   const [botType, setBotType] = useState<'booking' | 'leads' | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
@@ -166,34 +165,24 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchBotType = async () => {
       const botId = getBotIdFromUrl();
-      console.log('[Admin] BotId from URL:', botId);
-      console.log('[Admin] Full URL:', window.location.href);
       
       // Если нет botId - показываем форму входа (booking по умолчанию)
       if (!botId) {
-        console.log('[Admin] No botId, setting default booking');
         setBotType('booking');
         return;
       }
       
       try {
-        console.log('[Admin] Fetching bot type from API...');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => {
-          console.log('[Admin] Request timeout');
-          controller.abort();
-        }, 8000);
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
         
         const res = await fetch(`${API_BASE}/bots/${botId}/type`, {
           headers: { 'x-bot-id': String(botId) },
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
-        console.log('[Admin] Response status:', res.status);
         
         const data = await res.json();
-        console.log('[Admin] Response data:', data);
-        
         setBotType(data.type || 'booking');
         
         // Для leads-ботов сразу показываем вкладку лидов
@@ -201,7 +190,7 @@ export default function AdminPage() {
           setActiveTab('leads');
         }
       } catch (err) {
-        console.error('[Admin] Failed to fetch bot type:', err);
+        console.error('Failed to fetch bot type:', err);
         // При ошибке считаем что это booking бот
         setBotType('booking');
       }
@@ -237,6 +226,9 @@ export default function AdminPage() {
   }, [activeTab]);
 
   useEffect(() => {
+    // Не загружаем данные если тип бота ещё не определён или не авторизованы
+    if (botType === null || !isAuthenticated) return;
+    
     const fetchBookedDates = async () => {
       const year = currentMonth.getFullYear();
       const month = currentMonth.getMonth();
@@ -263,9 +255,12 @@ export default function AdminPage() {
     };
     
     fetchBookedDates();
-  }, [currentMonth, isAuthenticated]);
+  }, [currentMonth, isAuthenticated, botType]);
 
   useEffect(() => {
+    // Не загружаем данные если тип бота ещё не определён или не авторизованы
+    if (botType === null || !isAuthenticated) return;
+    
     const fetchBookings = async () => {
       setLoading(true);
       try {
@@ -283,19 +278,23 @@ export default function AdminPage() {
         }
         
         const data = await res.json();
-        setBookings(data);
+        setBookings(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Failed to fetch bookings:', err);
+        setBookings([]);
       } finally {
         setLoading(false);
       }
     };
     
     fetchBookings();
-  }, [selectedDate]);
+  }, [selectedDate, botType, isAuthenticated]);
 
   // Загрузка настроек напоминаний и лимита бронирований
   useEffect(() => {
+    // Не загружаем если не авторизованы
+    if (!isAuthenticated) return;
+    
     const fetchSettings = async () => {
       try {
         // Загрузка настроек напоминаний
@@ -319,16 +318,26 @@ export default function AdminPage() {
     if (activeTab === 'settings') {
       fetchSettings();
     }
-  }, [activeTab]);
-
+  }, [activeTab, isAuthenticated]);
+    
   // Загрузка услуг
   useEffect(() => {
+    // Не загружаем если не авторизованы
+    if (!isAuthenticated) return;
+    
     const fetchServices = async () => {
       try {
         const res = await fetch(`${API_BASE}/admin/services`, { headers: getAuthHeaders() });
         console.log('[FETCH SERVICES] status:', res.status);
         const data = await res.json();
         console.log('[FETCH SERVICES] raw data:', data);
+        
+        // Проверяем что это массив
+        if (!Array.isArray(data)) {
+          console.error('[FETCH SERVICES] Expected array but got:', typeof data);
+          setServices([]);
+          return;
+        }
         
         // Нормализуем данные - сервер возвращает is_active, клиент ожидает isActive
         const normalized = data.map((s: any) => ({
@@ -340,13 +349,14 @@ export default function AdminPage() {
         setServices(normalized);
       } catch (err) {
         console.error('Failed to fetch services:', err);
+        setServices([]);
       }
     };
     
     if (activeTab === 'services') {
       fetchServices();
     }
-  }, [activeTab]);
+  }, [activeTab, isAuthenticated]);
     
   // Переключить видимость услуги
   const handleToggleService = async (id: number, currentActive: boolean) => {
@@ -493,14 +503,16 @@ export default function AdminPage() {
   };
 
   const filteredBookings = useMemo(() => {
+    if (!Array.isArray(bookings)) return [];
     if (filter === 'all') return bookings;
-    return bookings.filter(b => b.status === filter);
+    return bookings.filter(b => b && b.status === filter);
   }, [bookings, filter]);
 
   const stats = useMemo(() => {
-    const confirmed = bookings.filter(b => b.status === 'confirmed').length;
-    const cancelled = bookings.filter(b => b.status === 'cancelled').length;
-    return { confirmed, cancelled, total: bookings.length };
+    const safeBookings = Array.isArray(bookings) ? bookings : [];
+    const confirmed = safeBookings.filter(b => b && b.status === 'confirmed').length;
+    const cancelled = safeBookings.filter(b => b && b.status === 'cancelled').length;
+    return { confirmed, cancelled, total: safeBookings.length };
   }, [bookings]);
 
   const formatDate = (dateStr: string) => {
