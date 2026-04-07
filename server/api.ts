@@ -650,4 +650,98 @@ router.delete('/bots/by-telegram-id/:telegramBotId', async (req, res) => {
   }
 });
 
+// ========== УНИВЕРСАЛЬНЫЕ API ЭНДПОИНТЫ (ДЛЯ КОНСТРУКТОРА БОТОВ) ==========
+
+// Импорт обработчиков
+import { getClientData, handleBotAction, getBotStats, getAdminData } from './handlers/index.js';
+
+// Получить тип бота
+router.get('/bots/:id/type', async (req, res) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const type = await db.getBotType(id);
+    res.json({ botId: id, type });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to fetch bot type' });
+  }
+});
+
+// Изменить тип бота
+router.patch('/bots/:id/type', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const id = parseInt(req.params.id as string);
+    const { type } = req.body;
+
+    if (!['booking', 'leads'].includes(type)) {
+      return res.status(400).json({ error: 'Invalid type. Must be "booking" or "leads"' });
+    }
+
+    await db.setBotType(id, type);
+    res.json({ success: true, type });
+  } catch (error) {
+    res.status(500).json({ error: 'Failed to update bot type' });
+  }
+});
+
+// Универсальный эндпоинт: получить данные для клиента (mini-app)
+router.get('/bots/:id/data', botFilter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+    const telegramId = getTelegramId(req);
+
+    const data = await getClientData(botId, telegramId || undefined);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('[GET DATA] error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch data' });
+  }
+});
+
+// Универсальный эндпоинт: обработать действие клиента
+// Формат: { "action": "create_booking", "payload": { ... } }
+router.post('/bots/:id/action', botFilter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+    const telegramId = getTelegramId(req);
+    const { action, payload } = req.body;
+
+    if (!action) {
+      return res.status(400).json({ success: false, error: 'action is required' });
+    }
+
+    const result = await handleBotAction(botId, action, payload || {}, telegramId || undefined);
+    res.json({ success: true, data: result });
+  } catch (error: any) {
+    console.error('[ACTION] error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to process action' });
+  }
+});
+
+// Универсальный эндпоинт: получить статистику
+router.get('/bots/:id/stats', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+
+    const stats = await getBotStats(botId);
+    res.json({ success: true, data: stats });
+  } catch (error: any) {
+    console.error('[STATS] error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch stats' });
+  }
+});
+
+// Универсальный эндпоинт: получить данные для админки
+router.get('/bots/:id/admin', botFilter, requireOwner, async (req: AuthenticatedRequest, res) => {
+  try {
+    const botId = getBotId(req);
+    const ownerId = req.bot?.ownerId;
+
+    const data = await getAdminData(botId, ownerId);
+    res.json({ success: true, data });
+  } catch (error: any) {
+    console.error('[ADMIN DATA] error:', error);
+    res.status(500).json({ success: false, error: error.message || 'Failed to fetch admin data' });
+  }
+});
+
 export default router;

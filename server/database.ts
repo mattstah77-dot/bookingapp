@@ -6,6 +6,7 @@ import {
 // Подключение к PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL?.includes('render.com') ? { rejectUnauthorized: false } : false,
 });
 
 // ========== ТАБЛИЦЫ ==========
@@ -153,6 +154,22 @@ export interface ScheduledReminder {
 
 // ========== ТАБЛИЦА БОТОВ (Multi-tenant) ==========
 
+// ========== ТИПЫ ДЛЯ LEADS ==========
+
+export interface Lead {
+  id: number;
+  botId: number;
+  name?: string;
+  phone: string;
+  comment?: string;
+  source: string;
+  status: 'new' | 'contacted' | 'converted' | 'lost';
+  telegramId?: number;
+  createdAt: Date;
+}
+
+// ========== ТИП ДЛЯ БОТА ==========
+
 export interface Bot {
   // camelCase (TypeScript)
   id: number;
@@ -164,6 +181,7 @@ export interface Bot {
   ownerName: string;
   isActive: boolean;
   status: 'creating' | 'success' | 'failed';
+  type?: 'booking' | 'leads';  // Опционально, по умолчанию 'booking' в БД
   createdAt: Date;
   // snake_case (PostgreSQL) - для совместимости
   telegram_bot_id?: string;
@@ -198,11 +216,22 @@ class PostgresDatabase {
         owner_name VARCHAR(255) NOT NULL,
         is_active BOOLEAN DEFAULT true,
         status VARCHAR(20) DEFAULT 'creating',
+        type VARCHAR(20) DEFAULT 'booking',
         created_at TIMESTAMP DEFAULT NOW()
       );
 
       CREATE INDEX IF NOT EXISTS idx_bots_secret_path ON bots(secret_path);
       CREATE INDEX IF NOT EXISTS idx_bots_owner_id ON bots(owner_id);
+    `);
+
+    // Миграция: добавить колонку type если её нет
+    await this.pool.query(`
+      ALTER TABLE bots ADD COLUMN IF NOT EXISTS type VARCHAR(20) DEFAULT 'booking';
+    `);
+
+    // Обновить существующие записи где type = NULL
+    await this.pool.query(`
+      UPDATE bots SET type = 'booking' WHERE type IS NULL;
     `);
 
     // Проверяем существование таблиц и добавляем bot_id если нужно
@@ -243,7 +272,7 @@ class PostgresDatabase {
         telegram_id INTEGER,
         created_at TIMESTAMP DEFAULT NOW()
       );
-
+      
       CREATE TABLE IF NOT EXISTS schedule (
         id SERIAL PRIMARY KEY,
         bot_id INTEGER NOT NULL DEFAULT 1,
@@ -253,7 +282,7 @@ class PostgresDatabase {
         break_start VARCHAR(5),
         break_end VARCHAR(5)
       );
-
+      
       CREATE TABLE IF NOT EXISTS settings (
         id SERIAL PRIMARY KEY,
         bot_id INTEGER NOT NULL DEFAULT 1,
@@ -279,6 +308,22 @@ class PostgresDatabase {
       CREATE INDEX IF NOT EXISTS idx_settings_bot_id ON settings(bot_id);
       CREATE INDEX IF NOT EXISTS idx_reminders_bot_id ON reminders(bot_id);
       CREATE INDEX IF NOT EXISTS idx_reminders_scheduled ON reminders(scheduled_for, sent);
+
+      -- Таблица лидов (для leads-ботов)
+      CREATE TABLE IF NOT EXISTS leads (
+        id SERIAL PRIMARY KEY,
+        bot_id INTEGER NOT NULL,
+        name VARCHAR(255),
+        phone VARCHAR(20) NOT NULL,
+        comment TEXT,
+        source VARCHAR(50) DEFAULT 'webapp',
+        status VARCHAR(20) DEFAULT 'new',
+        telegram_id INTEGER,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_leads_bot_id ON leads(bot_id);
+      CREATE INDEX IF NOT EXISTS idx_leads_status ON leads(status);
     `);
 
     // Создаём default бота если нет ни одного
@@ -287,7 +332,7 @@ class PostgresDatabase {
       // Создаём default бота с ID=1
       await this.createDefaultBot();
     }
-
+    
     console.log('✅ PostgreSQL database initialized');
   }
 
@@ -314,14 +359,14 @@ class PostgresDatabase {
     const ownerId = adminIds[0] || 0;
     
     await this.pool.query(
-      `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, 'success', true)`,
+      `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active, type)
+       VALUES ($1, $2, $3, $4, $5, $6, 'success', true, 'booking')`,
       ['default', 'default', defaultBotToken, 'default_bot', ownerId, 'Default Bot']
     );
-    
+
     // Seed данные для default бота (bot_id = 1)
     await this.seedDefaultData(1);
-    
+
     console.log('📝 Default bot created with ID=1');
   }
 
@@ -335,17 +380,17 @@ class PostgresDatabase {
     if (existing.rows.length > 0) {
       // Обновляем существующего бота
       const result = await this.pool.query(
-        `UPDATE bots SET secret_path = $1, bot_token = $2, bot_username = $3, owner_id = $4, owner_name = $5, status = $6, is_active = $7
+        `UPDATE bots SET secret_path = $1, bot_token = $2, bot_username = $3, owner_id = $4, owner_name = $5, status = $6, is_active = $7, type = COALESCE(type, 'booking')
          WHERE telegram_bot_id = $8 RETURNING *`,
         [bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive, bot.telegramBotId]
       );
       return result.rows[0];
     }
     
-    // Создаём нового бота
+    // Создаём нового бота (по умолчанию type = 'booking')
     const result = await this.pool.query(
-      `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active, type)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'booking') RETURNING *`,
       [bot.telegramBotId, bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive]
     );
     return result.rows[0];
@@ -404,6 +449,7 @@ class PostgresDatabase {
     if (updates.botUsername !== undefined) { fields.push(`bot_username = $${paramIndex++}`); values.push(updates.botUsername); }
     if (updates.isActive !== undefined) { fields.push(`is_active = $${paramIndex++}`); values.push(updates.isActive); }
     if (updates.status !== undefined) { fields.push(`status = $${paramIndex++}`); values.push(updates.status); }
+    if (updates.type !== undefined) { fields.push(`type = $${paramIndex++}`); values.push(updates.type); }
 
     if (fields.length === 0) return null;
 
@@ -842,6 +888,80 @@ class PostgresDatabase {
 
   async deleteRemindersByBookingId(botId: number, bookingId: number): Promise<void> {
     await this.pool.query('DELETE FROM reminders WHERE booking_id = $1 AND bot_id = $2', [bookingId, botId]);
+  }
+
+  // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ТИПОМ БОТА ==========
+
+  // Получить тип бота
+  async getBotType(botId: number): Promise<string> {
+    const result = await this.pool.query('SELECT type FROM bots WHERE id = $1', [botId]);
+    return result.rows[0]?.type || 'booking';
+  }
+
+  // Установить тип бота
+  async setBotType(botId: number, type: 'booking' | 'leads'): Promise<void> {
+    await this.pool.query('UPDATE bots SET type = $1 WHERE id = $2', [type, botId]);
+  }
+
+  // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ЛИДАМИ ==========
+
+  // Создать лида
+  async createLead(botId: number, lead: {
+    name?: string;
+    phone: string;
+    comment?: string;
+    telegramId?: number;
+  }): Promise<Lead> {
+    // Валидация
+    if (!lead.phone || lead.phone.trim() === '') {
+      throw new Error('Телефон обязателен');
+    }
+    
+    const result = await this.pool.query(
+      `INSERT INTO leads (bot_id, name, phone, comment, telegram_id, source)
+       VALUES ($1, $2, $3, $4, $5, 'webapp')
+       RETURNING *`,
+      [botId, lead.name || null, lead.phone.trim(), lead.comment || null, lead.telegramId || null]
+    );
+    return result.rows[0];
+  }
+
+  // Получить всех лидов бота
+  async getLeads(botId: number, status?: string): Promise<Lead[]> {
+    let query = 'SELECT * FROM leads WHERE bot_id = $1';
+    const params: any[] = [botId];
+
+    if (status) {
+      query += ' AND status = $2';
+      params.push(status);
+    }
+
+    query += ' ORDER BY created_at DESC';
+    const result = await this.pool.query(query, params);
+    return result.rows;
+  }
+
+  // Обновить статус лида
+  async updateLeadStatus(botId: number, leadId: number, status: string): Promise<void> {
+    await this.pool.query(
+      'UPDATE leads SET status = $1 WHERE id = $2 AND bot_id = $3',
+      [status, leadId, botId]
+    );
+  }
+
+  // Получить количество лидов по статусам
+  async getLeadStats(botId: number): Promise<{ new: number; contacted: number; converted: number; lost: number }> {
+    const result = await this.pool.query(
+      `SELECT status, COUNT(*) as count FROM leads WHERE bot_id = $1 GROUP BY status`,
+      [botId]
+    );
+    const stats = { new: 0, contacted: 0, converted: 0, lost: 0 };
+    result.rows.forEach(row => {
+      if (row.status in stats) {
+        stats[row.status as keyof typeof stats] = parseInt(row.count);
+      }
+    });
+    return stats;
   }
 }
 
