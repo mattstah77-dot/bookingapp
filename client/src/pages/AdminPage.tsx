@@ -94,6 +94,7 @@ function getAuthHeaders(): HeadersInit {
 }
 
 export default function AdminPage() {
+  console.log('[Admin] Component rendering, URL:', window.location.href);
   const theme = useTelegramTheme();
   const [botType, setBotType] = useState<'booking' | 'leads' | null>(null);
   const [leads, setLeads] = useState<any[]>([]);
@@ -165,24 +166,34 @@ export default function AdminPage() {
   useEffect(() => {
     const fetchBotType = async () => {
       const botId = getBotIdFromUrl();
+      console.log('[Admin] BotId from URL:', botId);
+      console.log('[Admin] Full URL:', window.location.href);
       
       // Если нет botId - показываем форму входа (booking по умолчанию)
       if (!botId) {
+        console.log('[Admin] No botId, setting default booking');
         setBotType('booking');
         return;
       }
       
       try {
+        console.log('[Admin] Fetching bot type from API...');
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        const timeoutId = setTimeout(() => {
+          console.log('[Admin] Request timeout');
+          controller.abort();
+        }, 8000);
         
         const res = await fetch(`${API_BASE}/bots/${botId}/type`, {
           headers: { 'x-bot-id': String(botId) },
           signal: controller.signal,
         });
         clearTimeout(timeoutId);
+        console.log('[Admin] Response status:', res.status);
         
         const data = await res.json();
+        console.log('[Admin] Response data:', data);
+        
         setBotType(data.type || 'booking');
         
         // Для leads-ботов сразу показываем вкладку лидов
@@ -190,7 +201,7 @@ export default function AdminPage() {
           setActiveTab('leads');
         }
       } catch (err) {
-        console.error('Failed to fetch bot type:', err);
+        console.error('[Admin] Failed to fetch bot type:', err);
         // При ошибке считаем что это booking бот
         setBotType('booking');
       }
