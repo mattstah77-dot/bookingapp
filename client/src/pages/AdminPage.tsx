@@ -95,6 +95,8 @@ function getAuthHeaders(): HeadersInit {
 
 export default function AdminPage() {
   const theme = useTelegramTheme();
+  const [botType, setBotType] = useState<'booking' | 'leads' | null>(null);
+  const [leads, setLeads] = useState<any[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -105,7 +107,7 @@ export default function AdminPage() {
   const [accessDenied, setAccessDenied] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [activeTab, setActiveTab] = useState<'bookings' | 'services' | 'settings'>('bookings');
+  const [activeTab, setActiveTab] = useState<'bookings' | 'services' | 'settings' | 'leads'>('bookings');
   const [reminderSettings, setReminderSettings] = useState<ReminderSettings>({
     enabled: true,
     defaultMinutesBefore: 120,
@@ -158,6 +160,58 @@ export default function AdminPage() {
       setIsAuthenticated(true);
     }
   }, []);
+
+  // Определение типа бота
+  useEffect(() => {
+    const fetchBotType = async () => {
+      const botId = getBotIdFromUrl();
+      if (!botId) return;
+      
+      try {
+        const res = await fetch(`${API_BASE}/bots/${botId}/type`, {
+          headers: { 'x-bot-id': String(botId) },
+        });
+        const data = await res.json();
+        setBotType(data.type || 'booking');
+        
+        // Для leads-ботов сразу показываем вкладку лидов
+        if (data.type === 'leads') {
+          setActiveTab('leads');
+        }
+      } catch (err) {
+        console.error('Failed to fetch bot type:', err);
+        setBotType('booking');
+      }
+    };
+    
+    fetchBotType();
+  }, []);
+
+  // Загрузка лидов для leads-ботов
+  useEffect(() => {
+    const fetchLeads = async () => {
+      if (activeTab !== 'leads') return;
+      
+      setLoading(true);
+      try {
+        const res = await fetch(`${API_BASE}/bots/${getBotIdFromUrl()}/action`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ action: 'get_leads', payload: {} }),
+        });
+        const data = await res.json();
+        if (data.success && data.data?.leads) {
+          setLeads(data.data.leads);
+        }
+      } catch (err) {
+        console.error('Failed to fetch leads:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchLeads();
+  }, [activeTab]);
 
   useEffect(() => {
     const fetchBookedDates = async () => {
@@ -270,7 +324,7 @@ export default function AdminPage() {
       fetchServices();
     }
   }, [activeTab]);
-
+    
   // Переключить видимость услуги
   const handleToggleService = async (id: number, currentActive: boolean) => {
     try {
@@ -511,10 +565,30 @@ export default function AdminPage() {
 
   const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
-  if (accessDenied || (!isAuthenticated && !getTelegramId())) {
+  // Показываем индикатор загрузки, пока определяем тип бота
+  if (botType === null) {
     return (
       <div 
-        style={{ 
+        style={{
+          minHeight: '100vh', 
+          padding: '24px',
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center',
+          backgroundColor: theme.bgColor,
+        }}
+      >
+        <div style={{ textAlign: 'center', color: theme.hintColor }}>
+          Загрузка...
+        </div>
+      </div>
+    );
+  }
+
+  if (accessDenied || (!isAuthenticated && !getTelegramId())) {
+    return (
+      <div
+        style={{
           minHeight: '100vh', 
           padding: '24px',
           display: 'flex', 
@@ -564,7 +638,7 @@ export default function AdminPage() {
           
           <button
             onClick={handleLogin}
-            style={{ 
+            style={{
               width: '100%',
               padding: '16px',
               borderRadius: '14px',
@@ -639,6 +713,99 @@ export default function AdminPage() {
             Админ-панель
           </h1>
         </div>
+
+        {activeTab === 'leads' && (
+          <div style={{ animation: 'fadeIn 0.3s ease' }}>
+            <h2 style={{ color: theme.textColor, fontSize: '18px', fontWeight: 700, marginBottom: '16px' }}>
+              Заявки ({leads.length})
+            </h2>
+            
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '40px', color: theme.hintColor }}>
+                Загрузка...
+              </div>
+            ) : leads.length === 0 ? (
+              <div style={{ 
+                textAlign: 'center', 
+                padding: '40px', 
+                color: theme.hintColor,
+                background: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+                borderRadius: '16px',
+              }}>
+                Пока нет заявок
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {leads.map((lead: any) => (
+                  <div
+                    key={lead.id}
+                    style={{
+                      background: isDark 
+                        ? 'linear-gradient(135deg, rgba(35,35,35,0.95), rgba(25,25,25,0.9))' 
+                        : 'linear-gradient(135deg, rgba(255,255,255,0.95), rgba(252,252,252,0.9))',
+                      backdropFilter: 'blur(20px)',
+                      border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.06)'}`,
+                      borderRadius: '16px',
+                      padding: '16px',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                      <div>
+                        <div style={{ color: theme.textColor, fontWeight: 600, fontSize: '15px' }}>
+                          {lead.name || 'Без имени'}
+                        </div>
+                        <div style={{ color: theme.buttonColor, fontWeight: 500, fontSize: '14px' }}>
+                          {lead.phone}
+                        </div>
+                      </div>
+                      <select
+                        value={lead.status}
+                        onChange={async (e) => {
+                          const newStatus = e.target.value;
+                          try {
+                            await fetch(`${API_BASE}/bots/${getBotIdFromUrl()}/action`, {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+                              body: JSON.stringify({ 
+                                action: 'update_lead_status', 
+                                payload: { leadId: lead.id, status: newStatus } 
+                              }),
+                            });
+                            setLeads(prev => prev.map(l => l.id === lead.id ? { ...l, status: newStatus } : l));
+                          } catch (err) {
+                            console.error('Failed to update lead status:', err);
+                          }
+                        }}
+                        style={{
+                          padding: '6px 10px',
+                          borderRadius: '8px',
+                          border: `1px solid ${isDark ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.1)'}`,
+                          background: isDark ? 'rgba(0,0,0,0.3)' : 'rgba(0,0,0,0.05)',
+                          color: theme.textColor,
+                          fontSize: '12px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <option value="new">Новая</option>
+                        <option value="contacted">В работе</option>
+                        <option value="converted">Конвертирована</option>
+                        <option value="lost">Потеряна</option>
+                      </select>
+                    </div>
+                    {lead.comment && (
+                      <div style={{ color: theme.hintColor, fontSize: '13px', marginTop: '8px' }}>
+                        {lead.comment}
+                      </div>
+                    )}
+                    <div style={{ color: theme.hintColor, fontSize: '11px', marginTop: '8px' }}>
+                      {new Date(lead.created_at).toLocaleString('ru-RU')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {activeTab === 'settings' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', animation: 'fadeIn 0.3s ease' }}>
@@ -1285,56 +1452,86 @@ export default function AdminPage() {
           zIndex: 100,
         }}
       >
-        <button
-          onClick={() => setActiveTab('bookings')}
-          style={{ 
-            width: '72px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            padding: '8px 6px',
-            borderRadius: '12px',
-            background: activeTab === 'bookings' 
-              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-              : 'transparent',
-            color: activeTab === 'bookings' 
-              ? theme.buttonTextColor 
-              : theme.hintColor,
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <ClipboardList size={16} />
-          <span style={{ fontSize: '9px', fontWeight: 600 }}>Записи</span>
-        </button>
-        <button
-          onClick={() => setActiveTab('services')}
-          style={{
-            width: '72px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '2px',
-            padding: '8px 6px',
-            borderRadius: '12px',
-            background: activeTab === 'services' 
-              ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
-              : 'transparent',
-            color: activeTab === 'services' 
-              ? theme.buttonTextColor 
-              : theme.hintColor,
-            border: 'none',
-            cursor: 'pointer',
-            transition: 'all 0.2s ease',
-          }}
-        >
-          <Scissors size={16} />
-          <span style={{ fontSize: '9px', fontWeight: 600 }}>Услуги</span>
-        </button>
+        {botType === 'leads' ? (
+          <button
+            onClick={() => setActiveTab('leads')}
+            style={{
+              width: '72px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '2px',
+              padding: '8px 6px',
+              borderRadius: '12px',
+              background: activeTab === 'leads' 
+                ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                : 'transparent',
+              color: activeTab === 'leads' 
+                ? theme.buttonTextColor 
+                : theme.hintColor,
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+          >
+            <Users size={16} />
+            <span style={{ fontSize: '9px', fontWeight: 600 }}>Лиды</span>
+          </button>
+        ) : (
+          <>
+            <button
+              onClick={() => setActiveTab('bookings')}
+              style={{ 
+                width: '72px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                padding: '8px 6px',
+                borderRadius: '12px',
+                background: activeTab === 'bookings' 
+                  ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                  : 'transparent',
+                color: activeTab === 'bookings' 
+                  ? theme.buttonTextColor 
+                  : theme.hintColor,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <ClipboardList size={16} />
+              <span style={{ fontSize: '9px', fontWeight: 600 }}>Записи</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('services')}
+              style={{
+                width: '72px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '2px',
+                padding: '8px 6px',
+                borderRadius: '12px',
+                background: activeTab === 'services' 
+                  ? `linear-gradient(135deg, ${theme.buttonColor}, ${theme.buttonColor}cc)`
+                  : 'transparent',
+                color: activeTab === 'services' 
+                  ? theme.buttonTextColor 
+                  : theme.hintColor,
+                border: 'none',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+              }}
+            >
+              <Scissors size={16} />
+              <span style={{ fontSize: '9px', fontWeight: 600 }}>Услуги</span>
+            </button>
+          </>
+        )}
         <button
           onClick={() => setActiveTab('settings')}
           style={{ 
