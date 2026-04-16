@@ -2,15 +2,19 @@ import { Router } from 'express';
 import { db } from './database.js';
 import { botFilter, requireOwner, AuthenticatedRequest } from './middleware.js';
 import { ADMIN_IDS } from './index.js';
+import { handlerRegistry } from './handlers/registry.js';
 
 const router = Router();
 
 // Проверка админа
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-// Получить botId из запроса (из middleware или по умолчанию 1 для обратной совместимости)
+// Получить botId из запроса (middleware уже проверил, что бот существует)
 function getBotId(req: AuthenticatedRequest): number {
-  return req.botId || 1;
+  if (!req.botId) {
+    throw new Error('Bot ID is required. Authentication failed.');
+  }
+  return req.botId;
 }
 
 // Получить telegramId из заголовка (может быть string | string[])
@@ -41,6 +45,49 @@ function requireAdmin(req: AuthenticatedRequest, res: any, next: any) {
 }
 
 // ========== PUBLIC ROUTES ==========
+
+// Получить список всех доступных типов ботов (только активные и публичные)
+router.get('/bot-types', async (req, res) => {
+  try {
+    const types = handlerRegistry.getPublicMetaList();
+    res.json(types);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch bot types' });
+  }
+});
+
+// Получить доступные типы ботов для текущего пользователя
+router.get('/user/bot-types', botFilter, async (req: AuthenticatedRequest, res) => {
+  try {
+    const ownerId = req.bot?.ownerId;
+
+    if (!ownerId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+
+    // Проверяем, есть ли у пользователя какие-либо доступы
+    const currentTypes = await db.getUserBotTypes(ownerId);
+    
+    // Если у пользователя нет никаких доступов, выдаём базовый 'leads'
+    if (currentTypes.length === 0) {
+      await db.grantUserBotType(ownerId, 'leads');
+      currentTypes.push('leads');
+    }
+
+    // Доступные пользователю типы
+    const available = currentTypes;
+    
+    // Все доступные типы из registry
+    const all = handlerRegistry.getPublicMetaList();
+    
+    res.json({
+      available,
+      all,
+    });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch user bot types' });
+  }
+});
 
 // Получить все услуги (только активные для клиентов) - с bot_id
 router.get('/services', botFilter, async (req: AuthenticatedRequest, res) => {
@@ -77,11 +124,11 @@ router.get('/booked-slots', botFilter, async (req: AuthenticatedRequest, res) =>
   try {
     const botId = getBotId(req);
     const { date } = req.query;
-    
+
     if (!date) {
       return res.status(400).json({ error: 'date is required' });
     }
-
+    
     const bookings = await db.getBookingsByDate(botId, date as string);
     const bufferTime = await db.getBufferTime(botId);
     
@@ -187,7 +234,7 @@ router.get('/my-bookings', botFilter, async (req: AuthenticatedRequest, res) => 
   try {
     const botId = getBotId(req);
     const telegramId = getTelegramId(req);
-    
+
     if (!telegramId) {
       return res.status(400).json({ error: 'telegramId required' });
     }
@@ -211,7 +258,7 @@ router.patch('/my-bookings/:id/cancel', botFilter, async (req: AuthenticatedRequ
     if (!telegramId) {
       return res.status(400).json({ error: 'telegramId required' });
     }
-    
+
     const bookings = await db.getBookings(botId);
     let booking = bookings.find(b => b.id === id && b.telegramId === telegramId);
     
@@ -240,7 +287,7 @@ router.patch('/my-bookings/:id/reschedule', botFilter, async (req: Authenticated
     const id = parseInt(req.params.id as string);
     const { date, time } = req.body;
     const telegramId = getTelegramId(req);
-    
+
     if (!telegramId) {
       return res.status(400).json({ error: 'telegramId required' });
     }
@@ -576,12 +623,38 @@ router.get('/bots/:id', async (req, res) => {
 });
 
 // Создать нового бота (добавляет бота в систему)
+// С проверкой лимитов и доступа к типу бота
 router.post('/bots', async (req, res) => {
   try {
-    const { telegramBotId, secretPath, botToken, botUsername, ownerId, ownerName } = req.body;
+    const { telegramBotId, secretPath, botToken, botUsername, ownerId, ownerName, type } = req.body;
     
     if (!telegramBotId || !secretPath || !botToken || !botUsername || !ownerId || !ownerName) {
       return res.status(400).json({ error: 'All fields are required' });
+    }
+    
+    const botType = type || 'leads';
+
+    if (!['booking', 'leads'].includes(botType)) {
+      return res.status(400).json({ error: 'Invalid type. Must be "booking" or "leads"' });
+    }
+
+    // 1. ПРОВЕРКА ДОСТУПА К ТИПУ БОТА
+    const allowedTypes = await db.getUserBotTypes(ownerId);
+    if (!allowedTypes.includes(botType)) {
+      return res.status(403).json({ 
+        error: `Bot type '${botType}' is not allowed for this user`,
+        allowedTypes,
+      });
+    }
+
+    // 2. ПРОВЕРКА ЛИМИТА БОТОВ
+    const limitCheck = await db.canUserCreateBot(ownerId);
+    if (!limitCheck.canCreate) {
+      return res.status(403).json({
+        error: `Bot limit reached. Current: ${limitCheck.currentCount}, Max: ${limitCheck.maxBots}`,
+        currentCount: limitCheck.currentCount,
+        maxBots: limitCheck.maxBots,
+      });
     }
     
     // Создаём бота
@@ -594,10 +667,13 @@ router.post('/bots', async (req, res) => {
       ownerName,
       isActive: true,
       status: 'success',
+      type: botType,
     });
     
-    // Seed данные для нового бота
-    await db.seedBotData(bot.id);
+    // Seed данные для нового бота (только для booking)
+    if (botType === 'booking') {
+      await db.seedBotData(bot.id);
+    }
     
     res.status(201).json(bot);
   } catch (error: any) {
@@ -671,12 +747,26 @@ router.patch('/bots/:id/type', botFilter, requireOwner, async (req: Authenticate
   try {
     const id = parseInt(req.params.id as string);
     const { type } = req.body;
+    const ownerId = req.bot?.ownerId;
+
+    if (!ownerId) {
+      return res.status(400).json({ error: 'Owner ID is required' });
+    }
 
     if (!['booking', 'leads'].includes(type)) {
       return res.status(400).json({ error: 'Invalid type. Must be "booking" or "leads"' });
     }
 
-    await db.setBotType(id, type);
+    // Проверяем, что пользователю разрешён этот тип бота
+    const allowedTypes = await db.getUserBotTypes(ownerId);
+    if (!allowedTypes.includes(type)) {
+      return res.status(403).json({ 
+        error: 'Bot type not allowed for this user',
+        allowedTypes 
+      });
+    }
+
+    await db.setBotType(id, type as 'booking' | 'leads');
     res.json({ success: true, type });
   } catch (error) {
     res.status(500).json({ error: 'Failed to update bot type' });

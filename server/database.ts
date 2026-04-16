@@ -234,6 +234,32 @@ class PostgresDatabase {
       UPDATE bots SET type = 'booking' WHERE type IS NULL;
     `);
 
+    // Создать таблицу user_bot_types для управления доступом пользователя к типам ботов
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS user_bot_types (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        bot_type VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT NOW(),
+        UNIQUE(user_id, bot_type)
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_bot_types_user_id ON user_bot_types(user_id);
+    `);
+
+    // Создать таблицу user_limits для управления лимитами пользователей
+    await this.pool.query(`
+      CREATE TABLE IF NOT EXISTS user_limits (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER NOT NULL UNIQUE,
+        max_bots INTEGER NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT NOW(),
+        updated_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_user_limits_user_id ON user_limits(user_id);
+    `);
+
     // Проверяем существование таблиц и добавляем bot_id если нужно
     await this.addBotIdColumn('services', 'bot_id');
     await this.addBotIdColumn('bookings', 'bot_id');
@@ -377,21 +403,23 @@ class PostgresDatabase {
     // Проверяем, существует ли бот с таким telegram_bot_id
     const existing = await this.pool.query('SELECT id FROM bots WHERE telegram_bot_id = $1', [bot.telegramBotId]);
     
+    const botType = bot.type || 'booking';
+    
     if (existing.rows.length > 0) {
       // Обновляем существующего бота
       const result = await this.pool.query(
-        `UPDATE bots SET secret_path = $1, bot_token = $2, bot_username = $3, owner_id = $4, owner_name = $5, status = $6, is_active = $7, type = COALESCE(type, 'booking')
-         WHERE telegram_bot_id = $8 RETURNING *`,
-        [bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive, bot.telegramBotId]
+        `UPDATE bots SET secret_path = $1, bot_token = $2, bot_username = $3, owner_id = $4, owner_name = $5, status = $6, is_active = $7, type = COALESCE($8, type)
+         WHERE telegram_bot_id = $9 RETURNING *`,
+        [bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive, botType, bot.telegramBotId]
       );
       return result.rows[0];
     }
     
-    // Создаём нового бота (по умолчанию type = 'booking')
+    // Создаём нового бота с указанным типом
     const result = await this.pool.query(
       `INSERT INTO bots (telegram_bot_id, secret_path, bot_token, bot_username, owner_id, owner_name, status, is_active, type)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'booking') RETURNING *`,
-      [bot.telegramBotId, bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [bot.telegramBotId, bot.secretPath, bot.botToken, bot.botUsername, bot.ownerId, bot.ownerName, bot.status, bot.isActive, botType]
     );
     return result.rows[0];
   }
@@ -901,6 +929,76 @@ class PostgresDatabase {
   // Установить тип бота
   async setBotType(botId: number, type: 'booking' | 'leads'): Promise<void> {
     await this.pool.query('UPDATE bots SET type = $1 WHERE id = $2', [type, botId]);
+  }
+
+  // ========== МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ДОСТУПОМ ПОЛЬЗОВАТЕЛЯ К ТИПАМ БОТОВ ==========
+
+  // Получить список типов ботов, доступных пользователю
+  async getUserBotTypes(userId: number): Promise<string[]> {
+    const result = await this.pool.query(
+      'SELECT bot_type FROM user_bot_types WHERE user_id = $1',
+      [userId]
+    );
+    return result.rows.map(row => row.bot_type);
+  }
+
+  // Выдать пользователю доступ к типу бота
+  async grantUserBotType(userId: number, botType: string): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO user_bot_types (user_id, bot_type) VALUES ($1, $2) ON CONFLICT DO NOTHING',
+      [userId, botType]
+    );
+  }
+
+  // Удалить доступ к типу бота
+  async revokeUserBotType(userId: number, botType: string): Promise<void> {
+    await this.pool.query(
+      'DELETE FROM user_bot_types WHERE user_id = $1 AND bot_type = $2',
+      [userId, botType]
+    );
+  }
+
+  // ========== МЕТОДЫ ДЛЯ УПРАВЛЕНИЯ ЛИМИТАМИ ПОЛЬЗОВАТЕЛЯ ==========
+
+  // Получить лимит ботов для пользователя
+  async getUserBotLimit(userId: number): Promise<number> {
+    const result = await this.pool.query(
+      'SELECT max_bots FROM user_limits WHERE user_id = $1',
+      [userId]
+    );
+    if (result.rows.length === 0) {
+      // По умолчанию 1 бот для новых пользователей
+      return 1;
+    }
+    return result.rows[0].max_bots;
+  }
+
+  // Установить лимит ботов для пользователя
+  async setUserBotLimit(userId: number, maxBots: number): Promise<void> {
+    await this.pool.query(
+      'INSERT INTO user_limits (user_id, max_bots) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET max_bots = $2, updated_at = NOW()',
+      [userId, maxBots]
+    );
+  }
+
+  // Получить количество ботов пользователя
+  async getUserBotsCount(userId: number): Promise<number> {
+    const result = await this.pool.query(
+      'SELECT COUNT(*) as count FROM bots WHERE owner_id = $1',
+      [userId]
+    );
+    return parseInt(result.rows[0].count);
+  }
+
+  // Проверить, может ли пользователь создать ещё один бот
+  async canUserCreateBot(userId: number): Promise<{ canCreate: boolean; currentCount: number; maxBots: number }> {
+    const currentCount = await this.getUserBotsCount(userId);
+    const maxBots = await this.getUserBotLimit(userId);
+    return {
+      canCreate: currentCount < maxBots,
+      currentCount,
+      maxBots,
+    };
   }
 
   // ========== МЕТОДЫ ДЛЯ РАБОТЫ С ЛИДАМИ ==========

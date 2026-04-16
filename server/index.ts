@@ -6,6 +6,9 @@ import { createBot, startBot } from '../bot/index.js';
 import apiRouter from './api.js';
 import { db } from './database.js';
 import { webhookBotResolver, type AuthenticatedRequest } from './middleware.js';
+import { getOrCreateBot } from './botCache.js';
+import { checkRateLimit, getClientIp } from './rateLimit.js';
+import { getHandlerByType } from './handlers/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +52,14 @@ app.post('/webhook', async (req, res) => {
 
 // Telegram webhook endpoint для дочерних ботов (multi-tenant)
 app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedRequest, res) => {
+  // Rate limiting - проверяем IP клиента
+  const clientIp = getClientIp(req);
+  if (!checkRateLimit(clientIp)) {
+    // Rate limit exceeded - всё равно возвращаем 200 для Telegram
+    res.send('OK');
+    return;
+  }
+  
   const bot = req.bot;
   
   if (!bot) {
@@ -57,7 +68,7 @@ app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedR
   }
   
   try {
-    console.log(`📝 Webhook received for bot ${bot.telegramBotId}, token: ${bot.botToken ? 'present' : 'MISSING'}`);
+    console.log(`📝 Webhook received for bot ${bot.telegramBotId}, botId=${bot.id}`);
     
     // Проверяем что токен есть
     if (!bot.botToken) {
@@ -66,76 +77,29 @@ app.post('/webhook/:secret_path', webhookBotResolver, async (req: AuthenticatedR
       return;
     }
     
-    // Динамически создаём бота с токеном для обработки обновления
-    const childBot = new Bot(bot.botToken);
-    
-    // Инициализируем бота
-    await childBot.init();
-    
-    // Добавляем обработчики команд для дочернего бота
-    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
     const botId = bot.id;
+    const botType = bot.type || 'booking';
+    const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
     
-    childBot.command('start', async (ctx) => {
-      await ctx.reply(
-        'Привет! Я бот для бронирования. 👋\n\nВыберите действие:',
-        {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }],
-              [{ text: '📋 Мои записи', callback_data: 'my_bookings_menu' }]
-            ]
-          }
-        }
-      );
+    // Получаем Bot instance из кэша
+    const childBot = await getOrCreateBot(botId, bot.botToken);
+    
+    // Получаем handler по типу бота (БЕЗ запроса в БД!)
+    const handler = getHandlerByType(botType);
+    
+    // Обрабатываем update через handler
+    const handled = await handler.handleTelegramUpdate({
+      update: req.body,
+      bot: childBot,
+      botId,
+      serverUrl,
     });
     
-    childBot.on('callback_query', async (ctx) => {
-      const callbackData = ctx.callbackQuery?.data;
-      if (!callbackData) return;
-      
-      await ctx.answerCallbackQuery();
-      
-      if (callbackData === 'my_bookings_menu') {
-        const telegramId = ctx.from?.id;
-        if (!telegramId) return;
-        
-        // Получаем записи пользователя
-        const upcoming = await db.getUserUpcomingBookings(botId, telegramId);
-        const past = await db.getUserPastBookings(botId, telegramId);
-        
-        if (upcoming.length === 0 && past.length === 0) {
-          await ctx.editMessageText(
-            'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
-            {
-              reply_markup: {
-                inline_keyboard: [
-                  [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
-                ]
-              }
-            }
-          );
-          return;
-        }
-        
-        let text = '📋 Ваши записи\n\n';
-        if (upcoming.length > 0) text += `📅 Предстоящих: ${upcoming.length}\n`;
-        if (past.length > 0) text += `📆 Прошедших: ${past.length}`;
-        
-        await ctx.editMessageText(text, {
-          reply_markup: {
-            inline_keyboard: [
-              [{ text: '📅 Предстоящие', callback_data: `my_bookings_upcoming_${botId}` }],
-              [{ text: '📆 Прошедшие', callback_data: `my_bookings_past_${botId}` }],
-              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
-            ]
-          }
-        });
-      }
-    });
+    // Если handler не обработал - используем fallback (grammY)
+    if (!handled) {
+      await childBot.handleUpdate(req.body);
+    }
     
-    // Обрабатываем обновление
-    await childBot.handleUpdate(req.body);
   } catch (err) {
     console.error(`Webhook error for bot ${bot.telegramBotId}:`, err);
   }

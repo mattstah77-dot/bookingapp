@@ -5,7 +5,8 @@ import { withTimeout, safeExecute, globalRateLimiter } from './utils/safeExecute
 
 // Хранилище состояний ожидания токена (в памяти)
 // В продакшене лучше использовать Redis или БД
-const pendingTokenStates = new Map<number, boolean>();
+// Храним объект: { waitingForToken: boolean, botType: 'booking' | 'leads' }
+const pendingTokenStates = new Map<number, { waitingForToken: boolean; botType: 'booking' | 'leads' }>();
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBHOOK_URL = process.env.WEBHOOK_URL;
@@ -86,9 +87,28 @@ export async function setupWebhook(botToken: string, secretPath: string): Promis
 export async function createChildBot(
   botToken: string,
   ownerId: number,
-  ownerName: string
+  ownerName: string,
+  botType: 'booking' | 'leads' = 'leads'
 ): Promise<{ success: boolean; bot?: any; error?: string }> {
   try {
+    // 0. ПРОВЕРКА ДОСТУПА К ТИПУ БОТА
+    const allowedTypes = await db.getUserBotTypes(ownerId);
+    if (!allowedTypes.includes(botType)) {
+      return {
+        success: false,
+        error: `Bot type '${botType}' is not allowed for this user. Allowed types: ${allowedTypes.join(', ') || 'none'}`,
+      };
+    }
+    
+    // 0.5. ПРОВЕРКА ЛИМИТА БОТОВ
+    const limitCheck = await db.canUserCreateBot(ownerId);
+    if (!limitCheck.canCreate) {
+      return {
+        success: false,
+        error: `Bot limit reached. Current: ${limitCheck.currentCount}, Max: ${limitCheck.maxBots}`,
+      };
+    }
+
     // 1. Валидируем токен
     const validation = await validateToken(botToken);
     if (!validation.success || !validation.bot) {
@@ -114,15 +134,18 @@ export async function createChildBot(
       ownerName: ownerName,
       isActive: true,
       status: 'success',
+      type: botType,
     });
     
     // 5. Очищаем старые данные если бот уже был (после createBot, чтобы получить правильный bot.id)
     await db.clearBotData(validation.bot.id);
     
-    // 6. Seed данные для нового бота
-    await db.seedBotData(bot.id);
+    // 6. Seed данные для нового бота (только для booking типа)
+    if (botType === 'booking') {
+      await db.seedBotData(bot.id);
+    }
     
-    console.log(`✅ Child bot created: ${validation.bot.username} (ID: ${bot.id})`);
+    console.log(`✅ Child bot created: ${validation.bot.username} (ID: ${bot.id}, type: ${botType})`);
     
     return { success: true, bot };
   } catch (error: any) {
@@ -594,9 +617,9 @@ export function createBot() {
         }
       );
       
-      // Устанавливаем состояние ожидания токена
+      // Устанавливаем состояние ожидания токена (по умолчанию booking)
       if (telegramId) {
-        pendingTokenStates.set(telegramId, true);
+        pendingTokenStates.set(telegramId, { waitingForToken: true, botType: 'booking' });
       }
     }, '/addbot command');
   });
@@ -615,7 +638,7 @@ export function createBot() {
       
       const telegramId = ctx.from?.id;
       if (!telegramId) return;
-    
+      
     // ========== ГЛАВНОЕ МЕНЮ ==========
     if (callbackData === 'main_menu') {
       const serverUrl = process.env.SERVER_URL || 'https://bookingapp-obxp.onrender.com';
@@ -826,15 +849,16 @@ export function createBot() {
       await ctx.editMessageText(text + '\n🗑 Запись удалена', { reply_markup: { inline_keyboard: keyboard } });
       return;
     }
-    // ========== ОБРАБОТКА ADD_BOT ==========
+    // ========== ОБРАБОТКА ADD_BOT - ВЫБОР ТИПА ==========
     if (callbackData === 'addbot_start') {
       await ctx.editMessageText(
         '🤖 Создание нового бота для бизнеса\n\n' +
-        'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
-        'Формат: просто отправьте токен в формате XXXXX:XXXXXXXXXXXXX',
+        'Выберите тип бота:',
         {
           reply_markup: {
             inline_keyboard: [
+              [{ text: '📅 Бронирование услуг', callback_data: 'addbot_type_booking' }],
+              [{ text: '📝 Сбор лидов (заявок)', callback_data: 'addbot_type_leads' }],
               [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
             ]
           }
@@ -843,14 +867,42 @@ export function createBot() {
       return;
     }
     
-    // Обработка callback "Добавить бота" из меню
-    if (callbackData === 'addbot_confirm_token') {
+    // Выбор типа "Бронирование"
+    if (callbackData === 'addbot_type_booking') {
+      const telegramId = ctx.from?.id;
+      if (telegramId) {
+        pendingTokenStates.set(telegramId, { waitingForToken: true, botType: 'booking' });
+      }
       await ctx.editMessageText(
-        '🤖 Создание нового бота\n\n' +
-        'Введите токен бота:',
+        '📅 Бронирование услуг\n\n' +
+        'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
+        'Формат: просто отправьте токен в формате XXXXX:XXXXXXXXXXXXX',
         {
           reply_markup: {
             inline_keyboard: [
+              [{ text: '🔄 Изменить тип', callback_data: 'addbot_start' }],
+              [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
+            ]
+          }
+        }
+      );
+      return;
+    }
+      
+    // Выбор типа "Лиды"
+    if (callbackData === 'addbot_type_leads') {
+      const telegramId = ctx.from?.id;
+      if (telegramId) {
+        pendingTokenStates.set(telegramId, { waitingForToken: true, botType: 'leads' });
+      }
+      await ctx.editMessageText(
+        '📝 Сбор лидов (заявок)\n\n' +
+        'Пожалуйста, отправьте токен бота, полученный от @BotFather\n\n' +
+        'Формат: просто отправьте токен в формате XXXXX:XXXXXXXXXXXXX',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '🔄 Изменить тип', callback_data: 'addbot_start' }],
               [{ text: '❌ Отмена', callback_data: 'admin_menu' }]
             ]
           }
@@ -860,7 +912,7 @@ export function createBot() {
     }
     }, 'callback_query');
   });
-
+      
   // Обработка текстовых сообщений (для токена бота)
   bot.on('message:text', async (ctx: Context) => {
     await safeExecute(async () => {
@@ -868,8 +920,8 @@ export function createBot() {
       const telegramId = ctx.from?.id;
       
       // Проверяем, ждём ли мы токен бота
-      const isWaiting = telegramId ? pendingTokenStates.get(telegramId) : false;
-      if (isWaiting && text && telegramId) {
+      const state = telegramId ? pendingTokenStates.get(telegramId) : undefined;
+      if (state?.waitingForToken && text && telegramId) {
         const botToken = text.trim();
         
         // Проверяем формат токена
@@ -878,20 +930,28 @@ export function createBot() {
           return;
         }
         
-        await ctx.reply('⏳ Проверяю токен и создаю бота...');
+        const botType = state.botType || 'booking';
+        const typeText = botType === 'booking' ? 'бронирования услуг' : 'сбора лидов';
+        
+        await ctx.reply(`⏳ Проверяю токен и создаю бота для ${typeText}...`);
         
         try {
-          const result = await createChildBot(botToken, telegramId, ctx.from.first_name);
+          const result = await createChildBot(botToken, telegramId, ctx.from.first_name, botType);
           
           if (result.success && result.bot) {
             const botUsername = result.bot.botUsername;
-            const secretPath = result.bot.secretPath;
             const miniAppUrl = `${SERVER_URL}?bot_id=${result.bot.id}`;
+            
+            const description = botType === 'booking' 
+              ? 'Клиенты смогут записываться на услуги'
+              : 'Клиенты смогут оставлять заявки';
             
             await ctx.reply(
               `✅ Бот успешно создан!\n\n` +
               `🤖 Username: @${botUsername}\n` +
+              `📋 Тип: ${typeText}\n` +
               `🔗 Mini App: ${miniAppUrl}\n\n` +
+              `${description}\n\n` +
               `Передайте эту ссылку вашему клиенту для использования.`,
               {
                 reply_markup: {

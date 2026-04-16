@@ -2,23 +2,22 @@
 import { db } from '../database.js';
 import { bookingHandler } from './bookingHandler.js';
 import { leadsHandler } from './leadsHandler.js';
+import { handlerRegistry } from './registry.js';
 import type { BotHandler, BotContext } from './types.js';
 
-// Маппинг типов ботов на обработчики
-const handlers: Record<string, BotHandler> = {
-  booking: bookingHandler,
-  leads: leadsHandler,
-};
+// Регистрируем обработчики при загрузке модуля
+handlerRegistry.register('booking', bookingHandler);
+handlerRegistry.register('leads', leadsHandler);
 
-// Получить обработчик по типу бота
-export function getHandler(botType: string): BotHandler {
-  return handlers[botType] || bookingHandler; // По умолчанию booking
+// Получить обработчик по типу бота (БЕЗ запроса в БД)
+export function getHandlerByType(botType: string): BotHandler {
+  return handlerRegistry.get(botType);
 }
 
-// Получить обработчик по botId
+// Получить обработчик по botId (с запросом в БД - для API)
 export async function getHandlerByBotId(botId: number): Promise<BotHandler> {
   const botType = await db.getBotType(botId);
-  return getHandler(botType);
+  return getHandlerByType(botType);
 }
 
 // Универсальная функция для получения данных клиента

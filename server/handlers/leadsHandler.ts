@@ -1,8 +1,23 @@
 // Обработчик для leads-ботов
 import { db } from '../database.js';
-import type { BotHandler, BotContext } from './types.js';
+import type { BotHandler, BotContext, TelegramUpdateContext } from './types.js';
 
 export class LeadsHandler implements BotHandler {
+  // Метаданные типа бота (продуктовый слой)
+  meta = {
+    type: 'leads',
+    name: 'Сбор заявок',
+    description: 'Собирает заявки от клиентов через форму',
+    category: 'marketing',
+    features: [
+      'Форма заявки',
+      'Сохранение лидов',
+      'Статусы лидов'
+    ],
+    isActive: true,
+    isPublic: true,
+    price: 5,
+  };
   
   async getClientData(ctx: BotContext): Promise<any> {
     // Для leads-бота клиенту нужно только форма (данные статические)
@@ -90,6 +105,58 @@ export class LeadsHandler implements BotHandler {
       leads,
       stats,
     };
+  }
+
+  // ========== TELEGRAM UPDATE HANDLER ==========
+  
+  async handleTelegramUpdate(ctx: TelegramUpdateContext): Promise<boolean> {
+    const { update, bot, botId, serverUrl } = ctx;
+    const message = update.message;
+    const callbackQuery = update.callback_query;
+    const text = message?.text;
+    const telegramId = message?.from?.id || callbackQuery?.from?.id;
+    
+    // Обработка /start
+    if (text === '/start') {
+      await bot.api.sendMessage(
+        telegramId,
+        'Привет! Я бот для сбора заявок. 👋\n\nОставьте заявку, и мы свяжемся с вами!',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📝 Оставить заявку', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+            ]
+          }
+        }
+      );
+      return true; // Обработано
+    }
+    
+    // Обработка callback_query
+    if (callbackQuery) {
+      const callbackData = callbackQuery.data;
+      if (!callbackData) return false;
+      
+      // Отвечаем на callback чтобы убрать часики
+      await bot.api.answerCallbackQuery(callbackQuery.id);
+      
+      // Для leads - просто приглашение оставить заявку
+      await bot.api.sendMessage(
+        telegramId,
+        '📝 Нажмите кнопку ниже, чтобы оставить заявку:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '📝 Оставить заявку', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+            ]
+          }
+        }
+      );
+      return true; // Обработано
+    }
+    
+    // Не обработано - нужен fallback
+    return false;
   }
 }
 

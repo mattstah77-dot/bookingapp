@@ -39,9 +39,13 @@ function createAdminNotification(booking: any): string {
 
 // Планирование напоминаний при создании брони
 export async function scheduleRemindersForBooking(booking: any): Promise<void> {
-  const botId = booking.botId || 1;
+  const botId = booking.botId;
+  if (!botId) {
+    console.warn('⚠️ Cannot schedule reminder: booking.botId is undefined');
+    return;
+  }
   const settings = await db.getReminderSettings(botId);
-  
+
   if (!settings.enabled || !booking.telegramId) {
     return;
   }
@@ -113,7 +117,11 @@ export async function processPendingReminders(): Promise<void> {
 export async function notifyAdminOfNewBooking(bot: Bot | null, booking: any): Promise<void> {
   if (!bot) return;
   
-  const botId = booking.botId || 1;
+  const botId = booking.botId;
+  if (!botId) {
+    console.warn('⚠️ Cannot notify admin: booking.botId is undefined');
+    return;
+  }
   
   // Получаем владельца бота для уведомления
   const botInfo = await db.getBotById(botId);

@@ -1,8 +1,23 @@
 // Обработчик для booking-ботов
 import { db } from '../database.js';
-import type { BotHandler, BotContext } from './types.js';
+import type { BotHandler, BotContext, TelegramUpdateContext } from './types.js';
 
 export class BookingHandler implements BotHandler {
+  // Метаданные типа бота (продуктовый слой)
+  meta = {
+    type: 'booking',
+    name: 'Бот записи',
+    description: 'Позволяет клиентам записываться на услуги',
+    category: 'business',
+    features: [
+      'Онлайн запись',
+      'Управление услугами',
+      'Просмотр записей'
+    ],
+    isActive: true,
+    isPublic: true,
+    price: 10,
+  };
   
   async getClientData(ctx: BotContext): Promise<any> {
     const services = await db.getServices(ctx.botId, false);
@@ -191,6 +206,83 @@ export class BookingHandler implements BotHandler {
       reminderSettings,
       maxActiveBookings,
     };
+  }
+
+  // ========== TELEGRAM UPDATE HANDLER ==========
+  
+  async handleTelegramUpdate(ctx: TelegramUpdateContext): Promise<boolean> {
+    const { update, bot, botId, serverUrl } = ctx;
+    const message = update.message;
+    const callbackQuery = update.callback_query;
+    const text = message?.text;
+    const telegramId = message?.from?.id || callbackQuery?.from?.id;
+    
+    // Обработка /start
+    if (text === '/start') {
+      await bot.api.sendMessage(
+        telegramId,
+        'Привет! Я бот для бронирования услуг. 👋\n\nВыберите действие:',
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }],
+              [{ text: '📋 Мои записи', web_app: { url: `${serverUrl}/my-bookings?bot_id=${botId}` } }]
+            ]
+          }
+        }
+      );
+      return true; // Обработано
+    }
+    
+    // Обработка callback_query
+    if (callbackQuery) {
+      const callbackData = callbackQuery.data;
+      if (!callbackData) return false;
+      
+      // Отвечаем на callback чтобы убрать часики
+      await bot.api.answerCallbackQuery(callbackQuery.id);
+      
+      if (callbackData === 'my_bookings_menu') {
+        const upcoming = await db.getUserUpcomingBookings(botId, telegramId);
+        const past = await db.getUserPastBookings(botId, telegramId);
+        
+        if (upcoming.length === 0 && past.length === 0) {
+          await bot.api.editMessageText(
+            telegramId,
+            callbackQuery.message?.message_id,
+            'У вас пока нет записей.\n\n✂️ Нажмите "Записаться", чтобы создать новую запись.',
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+                ]
+              }
+            }
+          );
+        } else {
+          let text = '📋 Ваши записи\n\n';
+          if (upcoming.length > 0) text += `📅 Предстоящих: ${upcoming.length}\n`;
+          if (past.length > 0) text += `📆 Прошедших: ${past.length}`;
+          
+          await bot.api.editMessageText(
+            telegramId,
+            callbackQuery.message?.message_id,
+            text,
+            {
+              reply_markup: {
+                inline_keyboard: [
+                  [{ text: '✂️ Записаться', web_app: { url: `${serverUrl}?bot_id=${botId}` } }]
+                ]
+              }
+            }
+          );
+        }
+        return true; // Обработано
+      }
+    }
+    
+    // Не обработано - нужен fallback
+    return false;
   }
 }
 
